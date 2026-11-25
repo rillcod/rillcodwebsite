@@ -1,4 +1,5 @@
-import { redactInvoiceListForRole } from '@/lib/finance/redact-invoice';
+import { redactInvoiceListForRole, isSchoolStreamInvoice } from '@/lib/finance/redact-invoice';
+import { isDeliverableExternalEmail } from '@/lib/finance/smart-communication';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -11,6 +12,173 @@ function adminClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+}
+
+async function enrichInvoicesForStaff(
+  admin: ReturnType<typeof adminClient>,
+  rows: Record<string, any>[],
+): Promise<Record<string, any>[]> {
+  if (rows.length === 0) return rows;
+  try {
+    const schoolIds = Array.from(
+      new Set(rows.map((r) => r.school_id).filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    );
+    const userIds = Array.from(
+      new Set(rows.map((r) => r.portal_user_id).filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    );
+    const openInvoiceIds = rows
+      .filter((r) => ['sent', 'overdue', 'pending', 'partially_paid'].includes(String(r.status || '').toLowerCase()))
+      .map((r) => r.id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+    const [
+      schoolContactsRes,
+      userContactsRes,
+      schoolUsersRes,
+      studentsRes,
+      proofsRes,
+    ] = await Promise.all([
+      schoolIds.length > 0
+        ? admin
+            .from('billing_contacts')
+            .select('school_id, representative_name, representative_email, representative_whatsapp')
+            .in('school_id', schoolIds)
+        : Promise.resolve({ data: [] as any[] }),
+      userIds.length > 0
+        ? admin
+            .from('billing_contacts')
+            .select('owner_user_id, representative_name, representative_email, representative_whatsapp')
+            .in('owner_user_id', userIds)
+        : Promise.resolve({ data: [] as any[] }),
+      schoolIds.length > 0
+        ? admin
+            .from('portal_users')
+            .select('school_id, full_name, email, phone')
+            .in('school_id', schoolIds)
+            .eq('role', 'school')
+        : Promise.resolve({ data: [] as any[] }),
+      userIds.length > 0
+        ? admin
+            .from('students')
+            .select('user_id, full_name, parent_name, parent_email, parent_phone, phone')
+            .in('user_id', userIds)
+        : Promise.resolve({ data: [] as any[] }),
+      openInvoiceIds.length > 0
+        ? admin
+            .from('invoice_payment_proofs')
+            .select('invoice_id, status, created_at')
+            .in('invoice_id', openInvoiceIds)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const schoolContactMap = new Map<string, any>();
+    for (const c of schoolContactsRes.data ?? []) {
+      if (c?.school_id && !schoolContactMap.has(c.school_id)) schoolContactMap.set(c.school_id, c);
+    }
+
+    const userContactMap = new Map<string, any>();
+    for (const c of userContactsRes.data ?? []) {
+      if (c?.owner_user_id && !userContactMap.has(c.owner_user_id)) userContactMap.set(c.owner_user_id, c);
+    }
+
+    const schoolPortalMap = new Map<string, any>();
+    for (const u of schoolUsersRes.data ?? []) {
+      if (u?.school_id && !schoolPortalMap.has(u.school_id)) schoolPortalMap.set(u.school_id, u);
+    }
+
+    const studentMap = new Map<string, any>();
+    for (const s of studentsRes.data ?? []) {
+      if (s?.user_id && !studentMap.has(s.user_id)) studentMap.set(s.user_id, s);
+    }
+
+    const proofSummaryMap = new Map<string, { count: number; latestAt: string | null; latestStatus: string | null }>();
+    for (const p of proofsRes.data ?? []) {
+      if (!p?.invoice_id) continue;
+      const existing = proofSummaryMap.get(p.invoice_id);
+      if (!existing) {
+        proofSummaryMap.set(p.invoice_id, {
+          count: 1,
+          latestAt: p.created_at ?? null,
+          latestStatus: p.status ?? null,
+        });
+      } else {
+        existing.count += 1;
+      }
+    }
+
+    return rows.map((inv) => {
+      const isSchool = isSchoolStreamInvoice(inv);
+      const billingContact = isSchool
+        ? (inv.school_id ? schoolContactMap.get(inv.school_id) ?? null : null)
+        : (inv.portal_user_id ? userContactMap.get(inv.portal_user_id) ?? null : null);
+
+      let resolvedEmail: string | null = null;
+      let resolvedPhone: string | null = null;
+      let resolvedName: string | null = null;
+      let source: string = 'none';
+
+      if (isSchool) {
+        const schoolUser = inv.school_id ? schoolPortalMap.get(inv.school_id) : null;
+        if (isDeliverableExternalEmail(billingContact?.representative_email)) {
+          resolvedEmail = billingContact.representative_email.trim();
+          source = 'billing_contact';
+        } else if (isDeliverableExternalEmail(schoolUser?.email)) {
+          resolvedEmail = schoolUser.email.trim();
+          source = 'school_portal';
+        }
+        resolvedPhone = billingContact?.representative_whatsapp || schoolUser?.phone || null;
+        resolvedName =
+          billingContact?.representative_name
+          || inv.schools?.name
+          || schoolUser?.full_name
+          || 'Partner School';
+      } else {
+        const stu = inv.portal_user_id ? studentMap.get(inv.portal_user_id) : null;
+        const portalEmail = inv.portal_users?.email;
+        if (isDeliverableExternalEmail(billingContact?.representative_email)) {
+          resolvedEmail = billingContact.representative_email.trim();
+          source = 'billing_contact';
+        } else if (isDeliverableExternalEmail(stu?.parent_email)) {
+          resolvedEmail = stu.parent_email.trim();
+          source = 'parent';
+        } else if (isDeliverableExternalEmail(portalEmail)) {
+          resolvedEmail = portalEmail.trim();
+          source = 'payer';
+        }
+        resolvedPhone =
+          billingContact?.representative_whatsapp
+          || stu?.parent_phone
+          || stu?.phone
+          || null;
+        resolvedName =
+          stu?.parent_name
+          || billingContact?.representative_name
+          || inv.portal_users?.full_name
+          || stu?.full_name
+          || 'Client';
+      }
+
+      const proofInfo = proofSummaryMap.get(inv.id);
+
+      return {
+        ...inv,
+        billing_contacts: billingContact,
+        resolved_recipient: {
+          name: resolvedName,
+          email: resolvedEmail,
+          phone: resolvedPhone,
+          source,
+        },
+        proof_count: proofInfo?.count ?? inv.proof_count ?? 0,
+        latest_proof_at: proofInfo?.latestAt ?? inv.latest_proof_at ?? null,
+        latest_proof_status: proofInfo?.latestStatus ?? inv.latest_proof_status ?? null,
+      };
+    });
+  } catch (err) {
+    console.warn('[invoices] enrichment skipped:', err);
+    return rows;
+  }
 }
 
 async function requireCaller() {
@@ -96,9 +264,14 @@ export async function GET(request: NextRequest) {
     console.error('[invoices] list failed', error);
     return NextResponse.json({ error: 'Invoices are temporarily unavailable' }, { status: 500 });
   }
+  const rawRows = data ?? [];
+  const enrichedRows =
+    caller.role === 'admin' || caller.role === 'school' || caller.role === 'teacher'
+      ? await enrichInvoicesForStaff(admin, rawRows)
+      : rawRows;
   // Same rule as the single-invoice route: a school sees its own bill in full and
-  // only a paid/unpaid indicator on a family's — never the figures.
-  const rows = redactInvoiceListForRole(data ?? [], caller.role);
+  // only a paid/unpaid indicator on a family's — never the figures or family contacts.
+  const rows = redactInvoiceListForRole(enrichedRows, caller.role);
   const total = count ?? rows.length;
   return NextResponse.json({
     data: rows,

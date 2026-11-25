@@ -23,6 +23,10 @@ import {
   streamLabel,
   type FinanceStream,
 } from '@/lib/finance/streams';
+import {
+  buildSmartFinanceWhatsAppText,
+  buildWhatsAppShareHref,
+} from '@/lib/finance/smart-communication';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
 
 interface AuditEntry {
@@ -227,26 +231,59 @@ export function ReceiptsPanel() {
     });
   };
 
-  const resendReceipt = async (r: ReceiptRow) => {
-    if (!r.portal_user_id) {
-      toast.error('No individual payer linked to this receipt — resend not applicable for school receipts');
-      return;
-    }
+  const resendReceipt = async (r: ReceiptRow, customEmail?: string) => {
     setResendingId(r.id);
     try {
       const res = await fetch('/api/payments/resend-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ portalUserId: r.portal_user_id }),
+        body: JSON.stringify({
+          receiptId: r.id,
+          ...(r.portal_user_id ? { portalUserId: r.portal_user_id } : {}),
+          ...(customEmail ? { recipientEmail: customEmail } : {}),
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to resend');
-      toast.success(`Receipt resent to ${r.portal_users?.email || 'payer'}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (data.needsEmail) {
+          const entered = window.prompt(
+            `Enter recipient email address for receipt ${r.receipt_number}:`,
+            r.portal_users?.email || '',
+          );
+          if (entered && entered.trim()) {
+            setResendingId(null);
+            await resendReceipt(r, entered.trim());
+            return;
+          }
+        }
+        throw new Error(data.error || 'Failed to resend');
+      }
+      toast.success(`Receipt emailed to ${data.sent_to || r.portal_users?.email || 'recipient'}`);
     } catch (err: any) {
       toast.error(err.message || 'Resend failed');
     } finally {
       setResendingId(null);
     }
+  };
+
+  const shareReceiptWhatsApp = (r: ReceiptRow) => {
+    const payer =
+      r.metadata?.payer_name ||
+      r.schools?.name ||
+      r.portal_users?.full_name ||
+      'Valued Partner';
+    const text = buildSmartFinanceWhatsAppText({
+      mode: 'receipt',
+      recipientName: payer,
+      invoiceNumber: r.metadata?.reference || r.receipt_number,
+      currency: r.currency || 'NGN',
+      totalAmount: r.amount,
+      amountPaid: r.amount,
+      remainingAmount: 0,
+      receiptUrl: r.pdf_url || null,
+      customNote: r.metadata?.notes || null,
+    });
+    window.open(buildWhatsAppShareHref(null, text), '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -425,18 +462,29 @@ export function ReceiptsPanel() {
                         <DocumentArrowDownIcon className="w-3 h-3" /> PDF
                       </a>
                     )}
-                    {!withdrawn && canManage && r.portal_user_id && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); resendReceipt(r); }}
-                        disabled={resendingId === r.id}
-                        title={`Resend receipt to ${r.portal_users?.email || 'payer'}`}
-                        className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-black uppercase tracking-widest disabled:opacity-40"
-                      >
-                        {resendingId === r.id
-                          ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                          : <EnvelopeIcon className="w-3 h-3" />}
-                        {resendingId === r.id ? '…' : 'Resend'}
-                      </button>
+                    {!withdrawn && canManage && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); void resendReceipt(r); }}
+                          disabled={resendingId === r.id}
+                          title={`Email receipt to ${r.portal_users?.email || r.schools?.name || 'recipient'}`}
+                          className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-black uppercase tracking-widest disabled:opacity-40"
+                        >
+                          {resendingId === r.id
+                            ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                            : <EnvelopeIcon className="w-3 h-3" />}
+                          {resendingId === r.id ? '…' : 'Email'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); shareReceiptWhatsApp(r); }}
+                          title="Share receipt summary on WhatsApp"
+                          className="inline-flex items-center gap-1 text-primary hover:text-primary/80 font-black uppercase tracking-widest"
+                        >
+                          WhatsApp
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

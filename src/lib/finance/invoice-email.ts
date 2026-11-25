@@ -16,6 +16,9 @@ export type InvoiceEmailSource = {
   id?: string;
   invoice_number?: string | null;
   amount?: number | null;
+  original_amount?: number | null;
+  amount_paid?: number | null;
+  amount_remaining?: number | null;
   currency?: string | null;
   status?: string | null;
   due_date?: string | null;
@@ -134,6 +137,8 @@ export function buildInvoiceReminderEmail(
   invoice: InvoiceEmailSource,
   level: InvoiceReminderLevel,
   opts?: {
+    recipientName?: string;
+    customNote?: string;
     paymentUrl?: string;
     appUrl?: string;
     bankAccounts?: InvoiceBankAccount[];
@@ -149,17 +154,49 @@ export function buildInvoiceReminderEmail(
     appUrl: base,
   });
 
-  const extraNotes = invoice.notes?.trim();
-  const notes = extraNotes
-    ? `${REMINDER_NOTES[level]}\n\n${extraNotes}`
-    : REMINDER_NOTES[level];
+  const paid = Math.max(0, Number(invoice.amount_paid ?? 0) || 0);
+  const remaining =
+    invoice.amount_remaining != null
+      ? Math.max(0, Number(invoice.amount_remaining) || 0)
+      : Math.max(0, Number(invoice.original_amount ?? invoice.amount ?? 0) - paid);
+  const curr = (invoice.currency || 'NGN').toUpperCase();
+  const fmtAmt = (n: number) =>
+    curr === 'NGN' ? `₦${n.toLocaleString('en-NG')}` : `${curr} ${n.toLocaleString('en-US')}`;
+
+  const partialSummary =
+    paid > 0 && remaining > 0
+      ? `Partial payment recorded: ${fmtAmt(paid)} received · Remaining balance due: ${fmtAmt(remaining)}.`
+      : '';
+
+  const noteParts = [
+    REMINDER_NOTES[level],
+    partialSummary,
+    opts?.customNote?.trim() || '',
+    invoice.notes?.trim() || '',
+  ].filter(Boolean);
+  const notes = noteParts.join('\n\n');
+
+  const items = parseInvoiceLineItems(invoice, { isSchool: opts?.isSchool });
+  if (paid > 0 && remaining > 0 && !items.some((it) => /paid|deposit/i.test(it.description))) {
+    items.push({
+      description: 'Less Amount Already Paid',
+      qty: 1,
+      unitPrice: -paid,
+      currency: curr,
+    });
+  }
+
+  const resolvedRecipientName =
+    opts?.recipientName?.trim()
+    || (opts?.isSchool ? schoolName : student?.full_name)
+    || 'Valued Client';
 
   const html = buildInvoiceEmail({
-    recipientName: student?.full_name ?? 'Student',
+    recipientName: resolvedRecipientName,
     invoiceNumber: resolveInvoiceNumber(invoice),
     issueDate: invoice.created_at || new Date().toISOString(),
     dueDate: invoice.due_date || new Date().toISOString(),
-    items: parseInvoiceLineItems(invoice, { isSchool: opts?.isSchool }),
+    items,
     currency: invoice.currency || 'NGN',
     notes,
     schoolName,
@@ -173,7 +210,7 @@ export function buildInvoiceReminderEmail(
   return {
     html,
     subject: invoiceReminderSubject(invoice, level, schoolName),
-    fromName: schoolName,
+    fromName: opts?.isSchool ? 'Rillcod Technologies' : schoolName,
   };
 }
 
@@ -186,19 +223,39 @@ export function buildInvoiceIssueEmail(
     paymentUrl: string;
     bankAccounts?: InvoiceBankAccount[];
     appUrl?: string;
+    customNote?: string;
   },
 ): { html: string; subject: string } {
   const base = appBaseUrl(opts.appUrl);
+  const paid = Math.max(0, Number(invoice.amount_paid ?? 0) || 0);
+  const remaining =
+    invoice.amount_remaining != null
+      ? Math.max(0, Number(invoice.amount_remaining) || 0)
+      : Math.max(0, Number(invoice.original_amount ?? invoice.amount ?? 0) - paid);
+  const curr = (invoice.currency || 'NGN').toUpperCase();
+  const items = parseInvoiceLineItems(invoice, {
+    isSchool: opts.isSchool,
+    fallbackDescription: opts.isSchool ? 'School Platform Fee' : 'Platform Fee',
+  });
+  if (paid > 0 && remaining > 0 && !items.some((it) => /paid|deposit/i.test(it.description))) {
+    items.push({
+      description: 'Less Amount Already Paid',
+      qty: 1,
+      unitPrice: -paid,
+      currency: curr,
+    });
+  }
+
+  const noteParts = [opts.customNote?.trim() || '', invoice.notes?.trim() || ''].filter(Boolean);
+
   const html = buildInvoiceEmail({
     recipientName: opts.recipientName,
     invoiceNumber: resolveInvoiceNumber(invoice),
     issueDate: invoice.created_at || new Date().toISOString(),
     dueDate: invoice.due_date || new Date(Date.now() + 7 * 86400000).toISOString(),
-    items: parseInvoiceLineItems(invoice, {
-      isSchool: opts.isSchool,
-      fallbackDescription: opts.isSchool ? 'School Platform Fee' : 'Platform Fee',
-    }),
+    items,
     currency: invoice.currency || 'NGN',
+    notes: noteParts.length > 0 ? noteParts.join('\n\n') : undefined,
     isSchool: opts.isSchool,
     schoolName: opts.isSchool ? resolveSchoolName(invoice) : undefined,
     bankAccounts: opts.bankAccounts,

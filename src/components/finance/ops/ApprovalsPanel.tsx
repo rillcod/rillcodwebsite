@@ -30,6 +30,7 @@ import Link from 'next/link';
 import { SPECIAL_BALANCE_PAYMENT_TYPE, TERM_REGISTRATION_BALANCE_PAYMENT_TYPE } from '@/lib/registration/enrollment-types';
 import { extractProspectPaymentProof, isPdfProofUrl } from '@/lib/summer-school/payment-proof';
 import { ProofReviewModal } from './ProofReviewModal';
+import { FinanceModalPortal } from '@/components/finance/FinanceModalPortal';
 
 interface TxRow {
   id: string;
@@ -191,33 +192,10 @@ export function ApprovalsPanel() {
         fetchAllTransactions(),
         fetchAllInvoices(),
       ]);
-      const openInvoices = invoiceRows.filter((inv) => ['sent', 'overdue', 'pending', 'partially_paid'].includes(inv.status));
-      let proofFailures = 0;
-      const proofMeta = await Promise.all(openInvoices.map(async (inv) => {
-        try {
-          const res = await fetch(`/api/invoices/${inv.id}/proofs`);
-          if (!res.ok) {
-            proofFailures++;
-            return { id: inv.id, proof_count: 0 };
-          }
-          const json = await res.json().catch(() => ({}));
-          const proofs = Array.isArray(json.data) ? json.data : [];
-          return {
-            id: inv.id,
-            proof_count: proofs.length,
-            latest_proof_at: proofs[0]?.created_at ?? null,
-            latest_proof_status: proofs[0]?.status ?? null,
-          };
-        } catch {
-          proofFailures++;
-          return { id: inv.id, proof_count: 0 };
-        }
-      }));
-      const proofMetaById = new Map(proofMeta.map((meta) => [meta.id, meta]));
-
+      // GET /api/invoices batch-enriches proof_count, latest_proof_at, and latest_proof_status
+      // in a single server query, eliminating N+1 per-invoice HTTP fetches.
       setTxs(transactionRows);
-      setInvoices(invoiceRows.map((inv) => ({ ...inv, ...(proofMetaById.get(inv.id) ?? {}) })));
-      setProofLoadFailures(proofFailures);
+      setInvoices(invoiceRows);
     } catch (e: unknown) {
       const message = (e as Error).message || 'Failed to load finance approvals.';
       setTxs([]);
@@ -548,104 +526,179 @@ export function ApprovalsPanel() {
       </div>
 
       {showManualVerify && isAdmin && (
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <p className="text-sm font-black text-foreground">Manual payment &amp; overpayment verification</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Record full, partial, or overpaid bank transfers, POS, or cash remittances. Excess payments are automatically saved as school/payer credit.
-              </p>
+        <FinanceModalPortal onEscape={() => !manualBusy && setShowManualVerify(false)}>
+          <div
+            className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => !manualBusy && setShowManualVerify(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Manual payment and overpayment verification"
+              className="bg-card border border-border rounded-t-3xl sm:rounded-2xl w-full sm:max-w-xl max-h-[92dvh] sm:max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border bg-card">
+                <div>
+                  <p className="text-sm font-black text-foreground">Manual Payment &amp; Overpayment Verification</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Record full, partial, or overpaid bank transfers, POS, or cash remittances.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowManualVerify(false)}
+                  disabled={manualBusy}
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted font-black"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4">
+                {manualTarget === 'invoice' && invoices.length > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Quick-select open invoice
+                    </label>
+                    <select
+                      value={invoices.some((i) => i.id === manualTargetId) ? manualTargetId : ''}
+                      onChange={(e) => {
+                        const chosen = invoices.find((i) => i.id === e.target.value);
+                        if (chosen) {
+                          setManualTargetId(chosen.id);
+                          const rem = Number((chosen as any).amount_remaining ?? chosen.amount);
+                          setManualAmount(String(rem > 0 ? rem : chosen.amount));
+                        }
+                      }}
+                      aria-label="Quick-select open invoice"
+                      className="w-full px-3 py-2 text-xs border border-border bg-background rounded-lg focus:outline-none focus:border-primary"
+                    >
+                      <option value="">Choose an invoice to auto-fill…</option>
+                      {invoices.map((inv) => (
+                        <option key={inv.id} value={inv.id}>
+                          #{inv.invoice_number} · {inv.schools?.name || inv.portal_users?.full_name || 'Payer'} ({formatMoney(inv.amount, inv.currency)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Target Type
+                    </label>
+                    <select
+                      value={manualTarget}
+                      onChange={(e) => setManualTarget(e.target.value as 'invoice' | 'special_balance' | 'term_balance')}
+                      className="w-full px-3 py-2 text-xs border border-border bg-background rounded-lg focus:outline-none focus:border-primary"
+                    >
+                      <option value="invoice">Invoice</option>
+                      <option value="special_balance">Special balance</option>
+                      <option value="term_balance">Term balance</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      {manualTarget === 'invoice' ? 'Invoice ID' : manualTarget === 'term_balance' ? 'Student ID' : 'Prospect ID'}
+                    </label>
+                    <input
+                      value={manualTargetId}
+                      onChange={(e) => setManualTargetId(e.target.value)}
+                      placeholder={
+                        manualTarget === 'invoice'
+                          ? 'Invoice UUID'
+                          : manualTarget === 'term_balance'
+                            ? 'Student UUID'
+                            : 'Prospect UUID'
+                      }
+                      className="w-full px-3 py-2 text-xs border border-border bg-background rounded-lg focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Amount Received
+                    </label>
+                    <input
+                      value={manualAmount}
+                      onChange={(e) => setManualAmount(e.target.value)}
+                      type="number"
+                      min="1"
+                      placeholder="Amount"
+                      className="w-full px-3 py-2 text-xs border border-border bg-background rounded-lg focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Method
+                    </label>
+                    <select
+                      value={manualMethod}
+                      onChange={(e) => setManualMethod(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-border bg-background rounded-lg focus:outline-none focus:border-primary"
+                    >
+                      <option value="bank_transfer">Bank transfer</option>
+                      <option value="pos">POS</option>
+                      <option value="cash">Cash</option>
+                      <option value="mobile_money">Mobile money</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Reference
+                    </label>
+                    <input
+                      value={manualReference}
+                      onChange={(e) => setManualReference(e.target.value)}
+                      placeholder="e.g. TRF-9012"
+                      className="w-full px-3 py-2 text-xs border border-border bg-background rounded-lg focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                    Audit Note (optional)
+                  </label>
+                  <textarea
+                    value={manualNote}
+                    onChange={(e) => setManualNote(e.target.value)}
+                    placeholder="Optional note, e.g. proof checked against bank statement"
+                    rows={2}
+                    className="w-full px-3 py-2 text-xs border border-border bg-background rounded-lg focus:outline-none focus:border-primary resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="shrink-0 border-t border-border bg-card px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowManualVerify(false)}
+                  disabled={manualBusy}
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={verifyManualPayment}
+                  disabled={manualBusy}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-sm"
+                >
+                  {manualBusy ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                  Verify Payment
+                </button>
+              </div>
             </div>
-            {manualTarget === 'invoice' && invoices.length > 0 && (
-              <select
-                value={invoices.some((i) => i.id === manualTargetId) ? manualTargetId : ''}
-                onChange={(e) => {
-                  const chosen = invoices.find((i) => i.id === e.target.value);
-                  if (chosen) {
-                    setManualTargetId(chosen.id);
-                    const rem = Number((chosen as any).amount_remaining ?? chosen.amount);
-                    setManualAmount(String(rem > 0 ? rem : chosen.amount));
-                  }
-                }}
-                aria-label="Quick-select open invoice"
-                className="px-3 py-1.5 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary max-w-xs"
-              >
-                <option value="">Quick-fill from open invoices…</option>
-                {invoices.map((inv) => (
-                  <option key={inv.id} value={inv.id}>
-                    #{inv.invoice_number} · {inv.schools?.name || inv.portal_users?.full_name || 'Payer'} ({formatMoney(inv.amount, inv.currency)})
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
-            <select
-              value={manualTarget}
-              onChange={(e) => setManualTarget(e.target.value as 'invoice' | 'special_balance' | 'term_balance')}
-              className="md:col-span-1 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
-            >
-              <option value="invoice">Invoice</option>
-              <option value="special_balance">Special balance</option>
-              <option value="term_balance">Term balance</option>
-            </select>
-            <input
-              value={manualTargetId}
-              onChange={(e) => setManualTargetId(e.target.value)}
-              placeholder={
-                manualTarget === 'invoice'
-                  ? 'Invoice ID'
-                  : manualTarget === 'term_balance'
-                    ? 'Student ID'
-                    : 'Prospect ID'
-              }
-              className="md:col-span-2 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
-            />
-            <input
-              value={manualAmount}
-              onChange={(e) => setManualAmount(e.target.value)}
-              type="number"
-              min="1"
-              placeholder="Amount"
-              className="px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
-            />
-            <select
-              value={manualMethod}
-              onChange={(e) => setManualMethod(e.target.value)}
-              className="px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
-            >
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="pos">POS</option>
-              <option value="cash">Cash</option>
-              <option value="mobile_money">Mobile money</option>
-              <option value="cheque">Cheque</option>
-              <option value="other">Other</option>
-            </select>
-            <input
-              value={manualReference}
-              onChange={(e) => setManualReference(e.target.value)}
-              placeholder="Reference"
-              className="px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
-            />
-          </div>
-          <div className="flex flex-col md:flex-row gap-2">
-            <textarea
-              value={manualNote}
-              onChange={(e) => setManualNote(e.target.value)}
-              placeholder="Optional note, e.g. proof checked against bank statement"
-              rows={2}
-              className="flex-1 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
-            />
-            <button
-              onClick={verifyManualPayment}
-              disabled={manualBusy}
-              className="md:w-44 inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md"
-            >
-              {manualBusy ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
-              Verify
-            </button>
-          </div>
-        </div>
+        </FinanceModalPortal>
       )}
 
       {loading ? (

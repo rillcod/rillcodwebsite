@@ -63,9 +63,18 @@ describe('invoice redaction', () => {
   });
 
   it("a school never sees the family's contact details", () => {
-    const out = redactInvoiceForRole(familyInvoice, 'school')!;
+    const enrichedFamily = {
+      ...familyInvoice,
+      billing_contacts: { representative_email: 'carol@example.com', representative_whatsapp: '+2348012345678' },
+      resolved_recipient: { name: 'Caroline Ihueghian', email: 'carol@example.com', phone: '+2348012345678' },
+      proof_count: 2,
+    };
+    const out = redactInvoiceForRole(enrichedFamily, 'school')!;
     expect(out.portal_users).toBeUndefined();
-    expect(JSON.stringify(out)).not.toMatch(/carol@example\.com|Caroline/);
+    expect(out.billing_contacts).toBeUndefined();
+    expect(out.resolved_recipient).toBeUndefined();
+    expect(out.proof_count).toBeUndefined();
+    expect(JSON.stringify(out)).not.toMatch(/carol@example\.com|Caroline|\+2348012345678/);
   });
   it("a teacher sees only status even for a school's own bill", () => {
     const out = redactInvoiceForRole(schoolBill, 'teacher')!;

@@ -1418,6 +1418,42 @@ export function SchoolInvoiceBuilderPanel({
           </p>
         </div>
       </div>
+
+      {/* Sticky mobile action bar so Create/Update CTA is always reachable without scrolling 1400px */}
+      <div className="lg:hidden sticky bottom-0 z-20 border-t border-primary/20 bg-card/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center justify-between gap-2 shadow-lg">
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+            {computed.overpaymentCredit > 0 ? 'Credit Balance' : 'Balance Due'}
+          </p>
+          <p className="text-sm font-black text-foreground truncate">
+            {computed.overpaymentCredit > 0
+              ? `+₦${computed.overpaymentCredit.toLocaleString()}`
+              : `₦${computed.balance.toLocaleString()}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobilePane((p) => (p === 'form' ? 'preview' : 'form'))}
+            className="min-h-10 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-[10px] font-black uppercase tracking-widest rounded-lg border border-border"
+          >
+            {mobilePane === 'form' ? 'Preview' : 'Form'}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave()}
+            disabled={!canProceed || saving}
+            className="min-h-10 inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-lg shadow"
+          >
+            {saving ? (
+              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <ShieldCheckIcon className="w-3.5 h-3.5" />
+            )}
+            {editingInvoiceId ? 'Update' : 'Create'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,12 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
 import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { SMTP_FROM_EMAIL } from '@/config/brand';
+import {
+  buildSmartFinanceWhatsAppText,
+  buildWhatsAppShareHref,
+  isDeliverableExternalEmail,
+} from '@/lib/finance/smart-communication';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,12 +44,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Finance administrator access required' }, { status: 403 });
     }
 
-    const { invoiceId, amount, method, reference, note } = await req.json().catch(() => ({}));
+    const { invoiceId, amount, method, reference, note, notifyPayer = true } = await req.json().catch(() => ({}));
     if (!invoiceId) return NextResponse.json({ error: 'invoiceId is required' }, { status: 400 });
 
     const { data: invoice } = await admin
       .from('invoices')
-      .select('id, invoice_number, amount, original_amount, amount_paid, amount_remaining, currency, status, stream, payment_transaction_id, portal_user_id, school_id, metadata, portal_users!invoices_portal_user_id_fkey(school_id)')
+      .select('id, invoice_number, amount, original_amount, amount_paid, amount_remaining, currency, status, stream, payment_transaction_id, portal_user_id, school_id, metadata, schools(name), portal_users!invoices_portal_user_id_fkey(school_id, full_name, email)')
       .eq('id', invoiceId)
       .maybeSingle();
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
@@ -84,6 +90,125 @@ export async function POST(req: NextRequest) {
     const overpaidAmount = result.overpaidAmount ?? 0;
     const nextRemaining = result.remainingAmount ?? 0;
     const resolvedStatus = result.status ?? (nextRemaining > 0.01 ? 'partially_paid' : 'paid');
+    const cumulativePaid = Math.max(0, Number(invoice.amount_paid ?? 0) + paidAmount);
+
+    // Resolve recipient contact for WhatsApp share link & school/partial payment email acknowledgement
+    let recipientEmail: string | null = null;
+    let recipientPhone: string | null = null;
+    const isSchoolStream = invoice.stream === 'school' || (Boolean(invoice.school_id) && !invoice.portal_user_id);
+    let recipientName: string = isSchoolStream
+      ? ((invoice.schools as any)?.name || 'Partner School')
+      : ((invoice.portal_users as any)?.full_name || 'Valued Client');
+
+    try {
+      if (isSchoolStream && invoice.school_id) {
+        const { data: bc } = await admin
+          .from('billing_contacts')
+          .select('representative_name, representative_email, representative_whatsapp')
+          .eq('school_id', invoice.school_id)
+          .maybeSingle();
+        if (bc?.representative_name) recipientName = bc.representative_name;
+        if (isDeliverableExternalEmail(bc?.representative_email)) {
+          recipientEmail = bc!.representative_email!.trim();
+        }
+        recipientPhone = bc?.representative_whatsapp || null;
+        if (!recipientEmail || !recipientPhone) {
+          const { data: su } = await admin
+            .from('portal_users')
+            .select('email, phone')
+            .eq('school_id', invoice.school_id)
+            .eq('role', 'school')
+            .maybeSingle();
+          if (!recipientEmail && isDeliverableExternalEmail(su?.email)) recipientEmail = su!.email!.trim();
+          if (!recipientPhone && su?.phone) recipientPhone = su.phone;
+        }
+      } else if (invoice.portal_user_id) {
+        const { data: stu } = await admin
+          .from('students')
+          .select('parent_name, parent_email, parent_phone, phone')
+          .eq('user_id', invoice.portal_user_id)
+          .maybeSingle();
+        if (stu?.parent_name) recipientName = stu.parent_name;
+        if (isDeliverableExternalEmail(stu?.parent_email)) {
+          recipientEmail = stu!.parent_email!.trim();
+        } else if (isDeliverableExternalEmail((invoice.portal_users as any)?.email)) {
+          recipientEmail = (invoice.portal_users as any).email.trim();
+        }
+        recipientPhone = stu?.parent_phone || stu?.phone || null;
+      }
+
+      // Send payment/installment acknowledgement email for school stream or partial/credit settlements
+      if (notifyPayer !== false && recipientEmail && (isSchoolStream || resolvedStatus === 'partially_paid' || overpaidAmount > 0)) {
+        const { buildReceiptHTML } = await import('@/lib/finance/templates/html/receipt-html');
+        const { notificationsService } = await import('@/services/notifications.service');
+        const fmtDate = (d?: string | null) =>
+          (d ? new Date(d) : new Date()).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+        const summaryNote =
+          overpaidAmount > 0
+            ? `Invoice #${invoice.invoice_number} is PAID IN FULL with +₦${overpaidAmount.toLocaleString('en-NG')} overpayment credit stored on your ledger.${note ? ` Note: ${note}` : ''}`
+            : nextRemaining > 0.01
+              ? `Partial payment recorded on Invoice #${invoice.invoice_number}. Remaining balance due: ₦${nextRemaining.toLocaleString('en-NG')}.${note ? ` Note: ${note}` : ''}`
+              : `Invoice #${invoice.invoice_number} has been settled in full.${note ? ` Note: ${note}` : ''}`;
+
+        const html = buildReceiptHTML({
+          docRef: reference || invoice.invoice_number || invoice.id.slice(0, 8).toUpperCase(),
+          dateStr: fmtDate(),
+          payDateStr: fmtDate(),
+          payerLabel: recipientName,
+          payerType: isSchoolStream ? 'school' : 'student',
+          paymentMethod: method || 'bank_transfer',
+          receivedBy: 'Rillcod Technologies',
+          items: [
+            {
+              description:
+                resolvedStatus === 'partially_paid'
+                  ? `Installment Payment — Invoice #${invoice.invoice_number}`
+                  : `Payment Settlement — Invoice #${invoice.invoice_number}`,
+              quantity: 1,
+              unit_price: paidAmount,
+            },
+          ],
+          totalAmount: paidAmount,
+          payToAcc: null,
+          notes: summaryNote,
+          mode: 'email',
+          actionUrl: result.receiptUrl || undefined,
+        });
+
+        await notificationsService.sendExternalEmail({
+          to: recipientEmail,
+          subject:
+            resolvedStatus === 'partially_paid'
+              ? `Payment Received (₦${paidAmount.toLocaleString('en-NG')}) — Invoice #${invoice.invoice_number} | Rillcod Technologies`
+              : `Payment Receipt — Invoice #${invoice.invoice_number} | Rillcod Technologies`,
+          html,
+          fromName: 'Rillcod Technologies',
+          fromEmail: SMTP_FROM_EMAIL,
+        });
+      }
+    } catch (ackErr) {
+      console.warn('[invoices/mark-paid] non-fatal acknowledgement warning:', ackErr);
+    }
+
+    const termLabel =
+      typeof (invoice.metadata as any)?.term_label === 'string'
+        ? (invoice.metadata as any).term_label
+        : null;
+
+    const waReceiptText = buildSmartFinanceWhatsAppText({
+      mode: 'receipt',
+      recipientName,
+      invoiceNumber: invoice.invoice_number || invoice.id.slice(0, 8).toUpperCase(),
+      currency: invoice.currency || 'NGN',
+      totalAmount: Number(invoice.original_amount ?? invoice.amount ?? 0),
+      amountPaid: cumulativePaid,
+      remainingAmount: nextRemaining,
+      overpaidAmount,
+      termLabel,
+      receiptUrl: result.receiptUrl || null,
+      customNote: note || null,
+    });
+    const whatsappReceiptUrl = buildWhatsAppShareHref(recipientPhone, waReceiptText);
 
     await logAudit(admin as any, {
       action: resolvedStatus === 'partially_paid' ? 'invoice_partially_paid' : 'invoice_marked_paid',
@@ -113,6 +238,8 @@ export async function POST(req: NextRequest) {
       paidAmount,
       overpaidAmount,
       remainingAmount: nextRemaining,
+      acknowledgedTo: notifyPayer !== false ? recipientEmail : null,
+      whatsappReceiptUrl,
     });
   } catch (err: any) {
     console.error('[invoices/mark-paid]', err);

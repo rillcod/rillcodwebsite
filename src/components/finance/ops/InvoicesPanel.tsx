@@ -22,6 +22,7 @@ import {
   EyeIcon,
   PencilSquareIcon,
   CreditCardIcon,
+  ArrowPathIcon,
 } from '@/lib/icons';
 import {
   classifyInvoiceStream,
@@ -33,6 +34,13 @@ import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
 import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
 import { TermInvoicePayPanel } from './TermInvoicePayPanel';
+import { FinanceModalPortal } from '@/components/finance/FinanceModalPortal';
+import {
+  analyzeInvoiceIntelligence,
+  buildSmartFinanceWhatsAppText,
+  buildWhatsAppShareHref,
+  isDeliverableExternalEmail,
+} from '@/lib/finance/smart-communication';
 import {
   FINANCE_ACADEMIC_TERM_ID_PARAM,
   FINANCE_ACADEMIC_YEAR_PARAM,
@@ -63,6 +71,10 @@ interface InvoiceRow {
   billing_cycle_id?: string | null;
   items?: unknown;
   notes?: string | null;
+  reminder_1_sent_at?: string | null;
+  reminder_2_sent_at?: string | null;
+  reminder_3_sent_at?: string | null;
+  proof_count?: number;
   metadata?: {
     academic_year?: number | string;
     term_number?: number | string;
@@ -77,7 +89,17 @@ interface InvoiceRow {
     academic_offerings?: { title?: string; pathway?: string; enrollment_type?: string } | null;
     academic_offering_periods?: { label?: string } | null;
   }>;
-  billing_contacts?: { representative_email?: string | null; representative_name?: string | null } | null;
+  billing_contacts?: {
+    representative_email?: string | null;
+    representative_name?: string | null;
+    representative_whatsapp?: string | null;
+  } | null;
+  resolved_recipient?: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    source?: string;
+  } | null;
 }
 
 function academicCoverageLabel(invoice: InvoiceRow): string | null {
@@ -133,7 +155,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'paid' | 'overdue' | 'overpaid'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'partial' | 'paid' | 'overdue' | 'overpaid'>('all');
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [showForm, setShowForm] = useState(false);
   const [showGeneratorChoice, setShowGeneratorChoice] = useState(false);
@@ -145,8 +167,14 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
   const [recordMethod, setRecordMethod] = useState('bank_transfer');
   const [recordReference, setRecordReference] = useState('');
   const [recordNote, setRecordNote] = useState('');
-  const [emailingId, setEmailingId] = useState<string | null>(null);
-  const [emailOverride, setEmailOverride] = useState('');
+  const [recordNotifyPayer, setRecordNotifyPayer] = useState(true);
+  const [commModalInv, setCommModalInv] = useState<InvoiceRow | null>(null);
+  const [commMode, setCommMode] = useState<'issue' | 'remind'>('remind');
+  const [commStage, setCommStage] = useState<1 | 2 | 3>(2);
+  const [commEmail, setCommEmail] = useState('');
+  const [commPhone, setCommPhone] = useState('');
+  const [commNote, setCommNote] = useState('');
+  const [commSendWhatsAppApi, setCommSendWhatsAppApi] = useState(false);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
   const [termDupes, setTermDupes] = useState<Array<{
@@ -329,6 +357,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     setRecordMethod('bank_transfer');
     setRecordReference('');
     setRecordNote('');
+    setRecordNotifyPayer(true);
   };
 
   const submitRecordedPayment = async () => {
@@ -350,6 +379,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
           method: recordMethod,
           reference: recordReference.trim() || undefined,
           note: recordNote.trim() || undefined,
+          notifyPayer: recordNotifyPayer,
         }),
       });
       const j = await res.json().catch(() => ({}));
@@ -358,17 +388,35 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       }
       const overpaid = Number(j.overpaidAmount ?? 0);
       const nextStatus = j.status ?? 'paid';
+      const waUrl = typeof j.whatsappReceiptUrl === 'string' ? j.whatsappReceiptUrl : null;
+      const toastOpts = waUrl
+        ? {
+            duration: 8000,
+            action: {
+              label: 'WhatsApp Receipt',
+              onClick: () => window.open(waUrl, '_blank', 'noopener,noreferrer'),
+            },
+          }
+        : undefined;
+
       if (overpaid > 0) {
         toast.success(
-          `Paid · +${formatMoney(overpaid, inv.currency)} overpayment credit recorded on ledger`,
+          `Paid · +${formatMoney(overpaid, inv.currency)} overpayment credit recorded${j.acknowledgedTo ? ` · Emailed ${j.acknowledgedTo}` : ''}`,
+          toastOpts,
         );
       } else if (nextStatus === 'partially_paid') {
         toast.success(
           `Partial payment (${formatMoney(parsedAmount, inv.currency)}) recorded · ${formatMoney(Number(j.remainingAmount ?? 0), inv.currency)} remaining`,
+          toastOpts,
         );
       } else {
         toast.success(
-          j.receiptUrl ? 'Paid, receipted, and acknowledged' : 'Paid and acknowledgement queued',
+          j.acknowledgedTo
+            ? `Paid, receipted & emailed to ${j.acknowledgedTo}`
+            : j.receiptUrl
+            ? 'Paid, receipted, and acknowledged'
+            : 'Paid and acknowledgement queued',
+          toastOpts,
         );
       }
       setRecordingPaymentInv(null);
@@ -380,38 +428,137 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     }
   };
 
-  function resolvedEmail(inv: InvoiceRow) {
-    return inv.billing_contacts?.representative_email || inv.portal_users?.email || null;
+  function resolvedEmail(inv: InvoiceRow): string | null {
+    if (isDeliverableExternalEmail(inv.resolved_recipient?.email)) {
+      return inv.resolved_recipient!.email!.trim();
+    }
+    if (isDeliverableExternalEmail(inv.billing_contacts?.representative_email)) {
+      return inv.billing_contacts!.representative_email!.trim();
+    }
+    if (isDeliverableExternalEmail(inv.portal_users?.email)) {
+      return inv.portal_users!.email!.trim();
+    }
+    return null;
   }
 
-  const sendEmail = async (inv: InvoiceRow, recipientEmail?: string) => {
-    setBusyId(inv.id);
-    try {
-      const res = await fetch('/api/payments/invoices/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId: inv.id, recipientEmail: recipientEmail?.trim() || undefined }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || j.success === false) throw new Error(j.message || j.error || 'Failed to send email');
-      setSentIds(prev => new Set(prev).add(inv.id));
-      setEmailingId(null);
-      setEmailOverride('');
-      toast.success(`Emailed to ${recipientEmail?.trim() || resolvedEmail(inv) || 'payer'}`);
-    } catch (e: unknown) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusyId(null);
-    }
+  function resolvedPhone(inv: InvoiceRow): string | null {
+    return inv.resolved_recipient?.phone || inv.billing_contacts?.representative_whatsapp || null;
+  }
+
+  const openCommModal = (inv: InvoiceRow, mode?: 'issue' | 'remind') => {
+    const diag = analyzeInvoiceIntelligence(inv);
+    const defaultMode: 'issue' | 'remind' =
+      mode ?? (inv.status === 'draft' && diag.remindersSentCount === 0 ? 'issue' : 'remind');
+    const phone = resolvedPhone(inv) || '';
+    setCommModalInv(inv);
+    setCommMode(defaultMode);
+    setCommStage(diag.recommendedReminderStage);
+    setCommEmail(resolvedEmail(inv) || '');
+    setCommPhone(phone);
+    setCommNote('');
+    setCommSendWhatsAppApi(Boolean(phone));
   };
 
-  const sendReminder = async (inv: InvoiceRow) => {
+  const buildClientWhatsAppHref = (
+    inv: InvoiceRow,
+    opts?: { mode?: 'issue' | 'remind'; stage?: 1 | 2 | 3; phone?: string; note?: string },
+  ) => {
+    const diag = analyzeInvoiceIntelligence(inv);
+    const useMode = opts?.mode ?? 'remind';
+    const stage = opts?.stage ?? diag.recommendedReminderStage;
+    const recipientName =
+      inv.resolved_recipient?.name ||
+      inv.schools?.name ||
+      inv.portal_users?.full_name ||
+      'Valued Client';
+    const termLabel =
+      (inv.metadata?.term_label as string | undefined) ||
+      (inv.metadata?.term_number != null && inv.metadata?.academic_year != null
+        ? schoolSessionDisplay(String(inv.metadata.academic_year), String(inv.metadata.term_number))
+        : null);
+    const text = buildSmartFinanceWhatsAppText({
+      mode:
+        inv.status === 'paid'
+          ? 'receipt'
+          : useMode === 'issue'
+          ? 'invoice'
+          : stage === 3
+          ? 'reminder_3'
+          : stage === 2
+          ? 'reminder_2'
+          : 'reminder_1',
+      recipientName,
+      invoiceNumber: inv.invoice_number,
+      currency: inv.currency || 'NGN',
+      totalAmount: diag.billed > 0 ? diag.billed : inv.amount,
+      amountPaid: diag.paid,
+      remainingAmount: diag.remaining,
+      overpaidAmount: diag.overpaid,
+      dueDate: inv.due_date,
+      termLabel,
+      customNote: opts?.note || null,
+    });
+    return buildWhatsAppShareHref(opts?.phone ?? resolvedPhone(inv), text);
+  };
+
+  const submitCommunication = async () => {
+    if (!commModalInv) return;
+    const inv = commModalInv;
+    const targetEmail = commEmail.trim();
+    if (!targetEmail) {
+      toast.error('Enter a recipient email address (or click Open WhatsApp to message directly).');
+      return;
+    }
     setBusyId(inv.id);
     try {
-      const res = await fetch(`/api/invoices/${inv.id}/remind`, { method: 'POST' });
+      const endpoint =
+        commMode === 'issue'
+          ? '/api/payments/invoices/send-email'
+          : `/api/invoices/${inv.id}/remind`;
+      const payload =
+        commMode === 'issue'
+          ? {
+              invoiceId: inv.id,
+              recipientEmail: targetEmail,
+              recipientPhone: commPhone.trim() || undefined,
+              customNote: commNote.trim() || undefined,
+              sendWhatsApp: commSendWhatsAppApi && Boolean(commPhone.trim()),
+            }
+          : {
+              reminder_number: commStage,
+              recipientEmail: targetEmail,
+              recipientPhone: commPhone.trim() || undefined,
+              customNote: commNote.trim() || undefined,
+              sendWhatsApp: commSendWhatsAppApi && Boolean(commPhone.trim()),
+            };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Failed to send reminder');
-      toast.success('Reminder sent');
+      if (!res.ok || j.success === false) {
+        throw new Error(j.message || j.error || 'Communication failed');
+      }
+      setSentIds((prev) => new Set(prev).add(inv.id));
+      const waShareUrl = typeof j.whatsappShareUrl === 'string' ? j.whatsappShareUrl : null;
+      toast.success(
+        commMode === 'issue'
+          ? `Invoice emailed to ${targetEmail}${j.whatsappDelivered ? ' + WhatsApp sent' : ''}`
+          : `Reminder #${j.reminder_number ?? commStage} sent to ${targetEmail}${j.whatsappDelivered ? ' + WhatsApp sent' : ''}`,
+        waShareUrl && !j.whatsappDelivered
+          ? {
+              duration: 8000,
+              action: {
+                label: 'Open WhatsApp',
+                onClick: () => window.open(waShareUrl, '_blank', 'noopener,noreferrer'),
+              },
+            }
+          : undefined,
+      );
+      setCommModalInv(null);
+      await load();
     } catch (e: unknown) {
       toast.error((e as Error).message);
     } finally {
@@ -427,6 +574,8 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
   const showManualRemind = (inv: InvoiceRow) =>
     canCollect
     && inv.status !== 'paid'
+    && inv.status !== 'cancelled'
+    && inv.status !== 'void'
     && (!inv.billing_cycle_id || isAdmin);
 
   const deleteInvoice = async (inv: InvoiceRow) => {
@@ -470,10 +619,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       schools: inv.schools ?? null,
     });
 
-    // Resolve recipient email: billing_contacts → portal_users (individual)
-    const resolvedEmail = stream === 'school'
-      ? (inv.billing_contacts?.representative_email || undefined)
-      : (inv.portal_users?.email || undefined);
+    const emailForPreview = resolvedEmail(inv) || undefined;
     const termLabel =
       (inv.metadata?.term_label as string | undefined)
       || (inv.metadata?.term_number != null && inv.metadata?.academic_year != null
@@ -493,11 +639,8 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       studentName: stream === 'school'
         ? (inv.schools?.name || 'Partner School')
         : (inv.portal_users?.full_name || 'Client'),
-      studentEmail: resolvedEmail,
+      studentEmail: emailForPreview,
       schoolName: 'RILLCOD TECHNOLOGIES',
-      // Persisted invoices always preview the same server-owned document used
-      // by the PDF/print action. This prevents payment details drifting between
-      // the quick preview, corrected invoice, and resend.
       documentUrl: `/api/invoices/${inv.id}/pdf`,
       billingCycleId: inv.billing_cycle_id ?? null,
       termLabel,
@@ -538,7 +681,16 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       .filter((inv) => {
         if (statusFilter === 'all') return true;
         if (statusFilter === 'paid') return inv.status === 'paid';
-        if (statusFilter === 'overdue') return inv.status === 'overdue';
+        if (statusFilter === 'partial') {
+          return (
+            inv.status === 'partially_paid' ||
+            (Number(inv.amount_paid ?? 0) > 0 && invoiceOutstandingAmount(inv as any) > 0.01)
+          );
+        }
+        if (statusFilter === 'overdue') {
+          const diag = analyzeInvoiceIntelligence(inv);
+          return diag.urgency === 'overdue';
+        }
         if (statusFilter === 'overpaid') return invoiceOverpaidAmount(inv as any) > 0;
         // "open" = anything still collectible, overdue included.
         return ['sent', 'draft', 'overdue', 'partially_paid'].includes(inv.status);
@@ -548,7 +700,9 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         return (
           (inv.invoice_number || '').toLowerCase().includes(q) ||
           (inv.schools?.name || '').toLowerCase().includes(q) ||
-          (inv.portal_users?.full_name || '').toLowerCase().includes(q)
+          (inv.portal_users?.full_name || '').toLowerCase().includes(q) ||
+          (inv.resolved_recipient?.name || '').toLowerCase().includes(q) ||
+          (inv.resolved_recipient?.email || '').toLowerCase().includes(q)
         );
       });
   }, [invoices, search, statusFilter, streamFilter]);
@@ -559,6 +713,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
     let totalOutstanding = 0;
     let totalOverpaid = 0;
     let overpaidCount = 0;
+    let partialCount = 0;
     for (const inv of invoices) {
       if (['cancelled', 'void'].includes(String(inv.status || '').toLowerCase())) continue;
       if (streamFilter !== 'all') {
@@ -573,14 +728,18 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       }
       totalBilled += Number(inv.amount || 0);
       totalPaid += Number(inv.amount_paid || 0);
-      totalOutstanding += invoiceOutstandingAmount(inv as any);
+      const rem = invoiceOutstandingAmount(inv as any);
+      totalOutstanding += rem;
+      if (inv.status === 'partially_paid' || (Number(inv.amount_paid || 0) > 0 && rem > 0.01)) {
+        partialCount += 1;
+      }
       const over = invoiceOverpaidAmount(inv as any);
       if (over > 0) {
         totalOverpaid += over;
         overpaidCount += 1;
       }
     }
-    return { totalBilled, totalPaid, totalOutstanding, totalOverpaid, overpaidCount };
+    return { totalBilled, totalPaid, totalOutstanding, totalOverpaid, overpaidCount, partialCount };
   }, [invoices, streamFilter]);
 
   return (
@@ -642,12 +801,13 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
                   return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
                 };
-                const headers = ['Invoice #', 'Stream', 'Status', 'Payer / School', 'Amount', 'Paid', 'Remaining', 'Currency', 'Issued', 'Due'];
+                const headers = ['Invoice #', 'Stream', 'Status', 'Payer / School', 'Contact Email', 'Amount', 'Paid', 'Remaining', 'Currency', 'Issued', 'Due'];
                 const rows = filtered.map((inv) => [
                   esc(inv.invoice_number),
                   esc(streamLabel(inv.stream)),
                   esc(inv.status),
                   esc(inv.schools?.name || inv.portal_users?.full_name || '—'),
+                  esc(resolvedEmail(inv) || '—'),
                   esc(inv.amount),
                   esc(inv.amount_paid ?? 0),
                   esc(invoiceOutstandingAmount(inv as any)),
@@ -674,7 +834,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search invoice #, school, payer…"
+              placeholder="Search invoice #, school, payer, email…"
               aria-label="Search invoices"
               className="w-full min-h-10 pl-9 pr-3 py-2 text-xs border border-border bg-background rounded-xl focus:outline-none focus:border-primary"
             />
@@ -683,7 +843,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center overflow-x-auto border border-border rounded-xl p-0.5 bg-muted/30 text-xs max-w-full scrollbar-hide">
-            {(['all', 'open', 'paid', 'overdue', 'overpaid'] as const).map((s) => (
+            {(['all', 'open', 'partial', 'overdue', 'paid', 'overpaid'] as const).map((s) => (
               <button
                 key={s}
                 type="button"
@@ -696,6 +856,8 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
               >
                 {s === 'overpaid' && ledgerMetrics.overpaidCount > 0
                   ? `Overpaid (${ledgerMetrics.overpaidCount})`
+                  : s === 'partial' && ledgerMetrics.partialCount > 0
+                  ? `Partial (${ledgerMetrics.partialCount})`
                   : s}
               </button>
             ))}
@@ -774,283 +936,383 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((inv) => (
-            <div
-              key={inv.id}
-              className="border border-border rounded-xl p-4 bg-card/50 hover:bg-card transition-colors"
-            >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black border ${streamPillClasses(
-                        inv.stream,
-                      )}`}
-                    >
-                      {streamLabel(inv.stream)}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                        INVOICE_STATUS_STYLES[inv.status] ?? INVOICE_STATUS_STYLES.draft
-                      }`}
-                    >
-                      {inv.status}
-                    </span>
-                    {inv.stream === 'school' && inv.billing_cycle_id ? (
-                      (() => {
-                        const session =
-                          inv.metadata?.term_label
-                          || (inv.metadata?.term_number != null && inv.metadata?.academic_year != null
-                            ? schoolSessionDisplay(String(inv.metadata.academic_year), String(inv.metadata.term_number))
-                            : null);
-                        return (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/30 bg-primary/10 text-primary">
-                            {session ? `Term billing · ${session}` : 'Term billing'}
-                          </span>
-                        );
-                      })()
-                    ) : null}
-                    {academicCoverageLabel(inv) && (
-                      <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
-                        {academicCoverageLabel(inv)}
-                      </span>
-                    )}
-                    <span className="text-[11px] font-mono text-muted-foreground">
-                      #{inv.invoice_number}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 flex-wrap text-sm">
-                    <span className="font-black text-foreground">
-                      {formatMoney(inv.amount, inv.currency)}
-                    </span>
-                    {Number(inv.amount_paid ?? 0) > 0 && (
-                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                        Paid {formatMoney(Number(inv.amount_paid), inv.currency)}
-                      </span>
-                    )}
-                    {inv.amount_remaining != null && Number(inv.amount_remaining) > 0.01 && Number(inv.amount_remaining) < Number(inv.amount) && (
-                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                        Remaining {formatMoney(inv.amount_remaining, inv.currency)}
-                      </span>
-                    )}
-                    {invoiceOverpaidAmount(inv as any) > 0 && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
-                        Overpaid · +{formatMoney(invoiceOverpaidAmount(inv as any), inv.currency)} Credit
-                      </span>
-                    )}
-                    {inv.schools?.name && (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <BuildingOfficeIcon className="w-3 h-3" /> {inv.schools.name}
-                      </span>
-                    )}
-                    {inv.portal_users?.full_name && (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <UserIcon className="w-3 h-3" /> {inv.portal_users.full_name}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-1">
-                    Issued {formatShortDate(inv.created_at)}
-                    {inv.due_date && ` · Due ${formatShortDate(inv.due_date)}`}
-                  </div>
-                </div>
+        <div className="space-y-2.5">
+          {filtered.map((inv) => {
+            const diag = analyzeInvoiceIntelligence(inv);
+            const contactEmail = resolvedEmail(inv);
+            const contactPhone = resolvedPhone(inv);
+            const urgencyPillCls =
+              diag.urgency === 'overdue'
+                ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                : diag.urgency === 'due_soon'
+                ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300'
+                : diag.urgency === 'partial'
+                ? 'bg-sky-500/15 border-sky-500/40 text-sky-700 dark:text-sky-300'
+                : '';
 
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => openPreview(inv)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest rounded-md hover:border-primary"
-                    title="Quick preview"
-                  >
-                    <EyeIcon className="w-3 h-3" /> View
-                  </button>
-
-                  {canPayTermInvoice(inv) && (
-                    <button
-                      onClick={() => setPayingInvoiceId(payingInvoiceId === inv.id ? null : inv.id)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title="Pay this term invoice online or upload bank transfer proof"
-                    >
-                      <CreditCardIcon className="w-3 h-3" />
-                      {payingInvoiceId === inv.id ? 'Hide pay' : 'Pay'}
-                    </button>
-                  )}
-
-                  {canManageInvoices && (
-                    classifyInvoiceStream(inv) === 'school' ? (
-                      <button
-                        onClick={() => { setEditingSchoolInvoiceId(inv.id); setShowSchoolGenerator(true); }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
-                        title="Edit premium school invoice"
+            return (
+              <div
+                key={inv.id}
+                className="border border-border rounded-xl p-4 bg-card/50 hover:bg-card transition-colors"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black border ${streamPillClasses(
+                          inv.stream,
+                        )}`}
                       >
-                        <PencilSquareIcon className="w-3 h-3" /> Edit
-                      </button>
-                    ) : (
-                      <Link
-                        href={`/dashboard/payments/invoices/${inv.id}/edit`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
-                        title="Edit invoice"
+                        {streamLabel(inv.stream)}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                          INVOICE_STATUS_STYLES[inv.status] ?? INVOICE_STATUS_STYLES.draft
+                        }`}
                       >
-                        <PencilSquareIcon className="w-3 h-3" /> Edit
-                      </Link>
-                    )
-                  )}
+                        {inv.status.replace(/_/g, ' ')}
+                      </span>
+                      {urgencyPillCls && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${urgencyPillCls}`}>
+                          {diag.urgencyLabel}
+                        </span>
+                      )}
+                      {inv.stream === 'school' && inv.billing_cycle_id ? (
+                        (() => {
+                          const session =
+                            inv.metadata?.term_label
+                            || (inv.metadata?.term_number != null && inv.metadata?.academic_year != null
+                              ? schoolSessionDisplay(String(inv.metadata.academic_year), String(inv.metadata.term_number))
+                              : null);
+                          return (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/30 bg-primary/10 text-primary">
+                              {session ? `Term billing · ${session}` : 'Term billing'}
+                            </span>
+                          );
+                        })()
+                      ) : null}
+                      {academicCoverageLabel(inv) && (
+                        <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-400">
+                          {academicCoverageLabel(inv)}
+                        </span>
+                      )}
+                      {Number(inv.proof_count || 0) > 0 && (
+                        <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-300">
+                          {inv.proof_count} proof{inv.proof_count === 1 ? '' : 's'} uploaded
+                        </span>
+                      )}
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        #{inv.invoice_number}
+                      </span>
+                    </div>
 
-                  {canCollect && inv.status !== 'cancelled' && inv.status !== 'void' && (
-                    <button
-                      onClick={() => openRecordPaymentModal(inv)}
-                      disabled={busyId === inv.id}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest rounded-md ${
-                        inv.status === 'paid'
-                          ? 'border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10'
-                          : 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                      }`}
-                      title={
-                        inv.status === 'paid'
-                          ? 'Record an overpayment or additional remittance on this invoice'
-                          : 'Record full, partial, or overpaid remittance'
-                      }
-                    >
-                      <CheckBadgeIcon className="w-3 h-3" />
-                      {inv.status === 'paid' ? '+ Overpayment' : 'Record Payment'}
-                    </button>
-                  )}
+                    <div className="flex items-center gap-2 flex-wrap text-sm">
+                      <span className="font-black text-foreground">
+                        {formatMoney(inv.amount, inv.currency)}
+                      </span>
+                      {diag.paid > 0 && (
+                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                          Paid {formatMoney(diag.paid, inv.currency)}
+                        </span>
+                      )}
+                      {diag.remaining > 0.01 && diag.paid > 0 && (
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                          Remaining {formatMoney(diag.remaining, inv.currency)}
+                        </span>
+                      )}
+                      {diag.overpaid > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
+                          Overpaid · +{formatMoney(diag.overpaid, inv.currency)} Credit
+                        </span>
+                      )}
+                      {inv.schools?.name && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/85">
+                          <BuildingOfficeIcon className="w-3.5 h-3.5 text-muted-foreground" /> {inv.schools.name}
+                        </span>
+                      )}
+                      {inv.portal_users?.full_name && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/85">
+                          <UserIcon className="w-3.5 h-3.5 text-muted-foreground" /> {inv.portal_users.full_name}
+                        </span>
+                      )}
+                    </div>
 
-                  {showManualRemind(inv) && (
-                    <button
-                      onClick={() => sendReminder(inv)}
-                      disabled={busyId === inv.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border hover:border-amber-500/50 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title={inv.billing_cycle_id ? 'Send a manual reminder (automatic term reminders also run on schedule)' : 'Send payment reminder'}
-                    >
-                      <BellAlertIcon className="w-3 h-3" /> Remind
-                    </button>
-                  )}
-
-                  {canCollect && (
-                    emailingId === inv.id ? (
-                      <div className="flex items-center gap-1 bg-card border border-primary/40 rounded-md px-2 py-1.5">
-                        <EnvelopeIcon className="w-3 h-3 text-primary shrink-0" />
-                        <input
-                          type="email"
-                          value={emailOverride}
-                          onChange={e => setEmailOverride(e.target.value)}
-                          placeholder={resolvedEmail(inv) ?? 'email@school.com'}
-                          autoFocus
-                          className="text-[11px] outline-none bg-transparent text-foreground w-36 placeholder:text-muted-foreground/50"
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') sendEmail(inv, emailOverride || resolvedEmail(inv) || '');
-                            if (e.key === 'Escape') { setEmailingId(null); setEmailOverride(''); }
-                          }}
-                        />
-                        <button
-                          onClick={() => sendEmail(inv, emailOverride || resolvedEmail(inv) || '')}
-                          disabled={busyId === inv.id}
-                          className="text-[10px] font-black text-primary hover:text-primary/80 disabled:opacity-40 shrink-0"
-                        >
-                          {busyId === inv.id ? '…' : 'Send'}
-                        </button>
-                        <button onClick={() => { setEmailingId(null); setEmailOverride(''); }} className="text-muted-foreground hover:text-foreground shrink-0">
-                          <XMarkIcon className="w-3 h-3" />
-                        </button>
+                    {/* Smart installment collection bar when partially paid */}
+                    {diag.paid > 0 && diag.remaining > 0.01 && (
+                      <div className="max-w-sm pt-0.5">
+                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-600 transition-all"
+                            style={{ width: `${Math.max(4, diag.percentPaid)}%` }}
+                          />
+                        </div>
                       </div>
-                    ) : (
+                    )}
+
+                    <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                      <span>
+                        Issued {formatShortDate(inv.created_at)}
+                        {inv.due_date && ` · Due ${formatShortDate(inv.due_date)}`}
+                      </span>
+                      {canCollect && (
+                        <>
+                          <span>·</span>
+                          {contactEmail || contactPhone ? (
+                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                              {[contactEmail, contactPhone ? 'WhatsApp ready' : null].filter(Boolean).join(' · ')}
+                            </span>
+                          ) : (
+                            <span className="text-amber-700 dark:text-amber-400 font-semibold">
+                              No saved contact — click Communicate to add
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {diag.remindersSentCount > 0 && (
+                        <>
+                          <span>·</span>
+                          <span className="font-semibold text-foreground/80">
+                            Reminded ×{diag.remindersSentCount}
+                            {diag.lastRemindedAt ? ` (${formatShortDate(diag.lastRemindedAt)})` : ''}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openPreview(inv)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest rounded-md hover:border-primary"
+                      title="Quick preview"
+                    >
+                      <EyeIcon className="w-3 h-3" /> View
+                    </button>
+
+                    {canPayTermInvoice(inv) && (
                       <button
-                        onClick={() => { setEmailingId(inv.id); setEmailOverride(resolvedEmail(inv) ?? ''); }}
+                        type="button"
+                        onClick={() => setPayingInvoiceId(payingInvoiceId === inv.id ? null : inv.id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
+                        title="Pay this term invoice online or upload bank transfer proof"
+                      >
+                        <CreditCardIcon className="w-3 h-3" />
+                        {payingInvoiceId === inv.id ? 'Hide pay' : 'Pay'}
+                      </button>
+                    )}
+
+                    {canManageInvoices && (
+                      classifyInvoiceStream(inv) === 'school' ? (
+                        <button
+                          type="button"
+                          onClick={() => { setEditingSchoolInvoiceId(inv.id); setShowSchoolGenerator(true); }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
+                          title="Edit premium school invoice"
+                        >
+                          <PencilSquareIcon className="w-3 h-3" /> Edit
+                        </button>
+                      ) : (
+                        <Link
+                          href={`/dashboard/payments/invoices/${inv.id}/edit`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
+                          title="Edit invoice"
+                        >
+                          <PencilSquareIcon className="w-3 h-3" /> Edit
+                        </Link>
+                      )
+                    )}
+
+                    {canCollect && inv.status !== 'cancelled' && inv.status !== 'void' && (
+                      <button
+                        type="button"
+                        onClick={() => openRecordPaymentModal(inv)}
+                        disabled={busyId === inv.id}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest rounded-md ${
+                          inv.status === 'paid'
+                            ? 'border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10'
+                            : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                        }`}
+                        title={
+                          inv.status === 'paid'
+                            ? 'Record an overpayment or additional remittance on this invoice'
+                            : 'Record full, partial, or overpaid remittance'
+                        }
+                      >
+                        <CheckBadgeIcon className="w-3 h-3" />
+                        {inv.status === 'paid' ? '+ Overpayment' : 'Record Payment'}
+                      </button>
+                    )}
+
+                    {showManualRemind(inv) && (
+                      <button
+                        type="button"
+                        onClick={() => openCommModal(inv, 'remind')}
+                        disabled={busyId === inv.id}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest rounded-md"
+                        title={`Send smart Stage #${diag.recommendedReminderStage} reminder via Email, In-App & WhatsApp`}
+                      >
+                        <BellAlertIcon className="w-3 h-3" />
+                        Remind #{diag.recommendedReminderStage}
+                      </button>
+                    )}
+
+                    {canCollect && inv.status !== 'cancelled' && inv.status !== 'void' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          inv.status === 'paid'
+                            ? window.open(buildClientWhatsAppHref(inv), '_blank', 'noopener,noreferrer')
+                            : openCommModal(inv, 'issue')
+                        }
+                        disabled={busyId === inv.id}
                         className={`inline-flex items-center gap-1 px-2.5 py-1.5 border text-[10px] font-black uppercase tracking-widest rounded-md transition-colors ${
                           sentIds.has(inv.id)
-                            ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10'
+                            ? 'border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10'
                             : 'border-border hover:border-primary/50 text-primary'
                         }`}
-                        title={sentIds.has(inv.id) ? 'Sent — click to resend' : resolvedEmail(inv) ? `Email to ${resolvedEmail(inv)}` : 'Email invoice (enter address)'}
+                        title={
+                          inv.status === 'paid'
+                            ? 'Share payment receipt on WhatsApp'
+                            : 'Send invoice via Email + WhatsApp with online checkout & bank details'
+                        }
                       >
                         <EnvelopeIcon className="w-3 h-3" />
-                        {sentIds.has(inv.id) ? '✓ Sent' : 'Email'}
+                        {inv.status === 'paid' ? 'Share Receipt' : sentIds.has(inv.id) ? '✓ Sent' : 'Communicate'}
                       </button>
-                    )
-                  )}
+                    )}
 
-                  <button
-                    onClick={() => {
-                      const w = window.open(`/api/invoices/${inv.id}/pdf`, '_blank', 'width=960,height=860');
-                      if (w) {
-                        w.onload = () => setTimeout(() => w.print(), 500);
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest rounded-md hover:border-primary"
-                    title="Print / Save PDF"
-                  >
-                    PDF
-                  </button>
-
-                  {isAdmin && inv.status !== 'paid' && (
                     <button
-                      onClick={() => deleteInvoice(inv)}
-                      disabled={busyId === inv.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title="Cancel invoice (reminders stop; financial history is preserved)"
+                      type="button"
+                      onClick={() => {
+                        const w = window.open(`/api/invoices/${inv.id}/pdf`, '_blank', 'width=960,height=860');
+                        if (w) {
+                          w.onload = () => setTimeout(() => w.print(), 500);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest rounded-md hover:border-primary"
+                      title="Print / Save PDF"
                     >
-                      <TrashIcon className="w-3 h-3" />
+                      PDF
                     </button>
-                  )}
+
+                    {isAdmin && inv.status !== 'paid' && (
+                      <button
+                        type="button"
+                        onClick={() => deleteInvoice(inv)}
+                        disabled={busyId === inv.id}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest rounded-md"
+                        title="Cancel invoice (reminders stop; financial history is preserved)"
+                      >
+                        <TrashIcon className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {payingInvoiceId === inv.id && inv.billing_cycle_id && (
+                  <TermInvoicePayPanel
+                    billingCycleId={inv.billing_cycle_id}
+                    amount={Number(inv.amount_remaining ?? inv.amount)}
+                    currency={inv.currency}
+                    invoiceNumber={inv.invoice_number}
+                    onComplete={() => load()}
+                  />
+                )}
               </div>
-              {payingInvoiceId === inv.id && inv.billing_cycle_id && (
-                <TermInvoicePayPanel
-                  billingCycleId={inv.billing_cycle_id}
-                  amount={Number(inv.amount_remaining ?? inv.amount)}
-                  currency={inv.currency}
-                  invoiceNumber={inv.invoice_number}
-                  onComplete={() => load()}
-                />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-
+      {/* 1. Generator Choice Modal (Portaled above all navigation menus) */}
       {showGeneratorChoice && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div role="dialog" aria-modal="true" className="w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border border-border bg-card p-5 sm:p-7">
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div><p className="text-lg font-black text-foreground">Create premium invoice</p><p className="text-sm text-muted-foreground">Choose the payer. Both options use the same invoice, payment and receipt lifecycle.</p></div>
-              <button onClick={() => setShowGeneratorChoice(false)} className="p-2 rounded-xl hover:bg-muted"><XMarkIcon className="w-5 h-5" /></button>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <button onClick={() => { setShowGeneratorChoice(false); setShowForm(true); }} className="text-left rounded-2xl border border-border p-5 hover:border-primary hover:bg-primary/5 transition-colors">
-                <UserIcon className="w-7 h-7 text-primary mb-3" /><p className="font-black text-foreground">Individual invoice</p><p className="text-xs text-muted-foreground mt-1">One student, parent or individual payer with flexible line items.</p>
-              </button>
-              <button onClick={() => { setShowGeneratorChoice(false); setEditingSchoolInvoiceId(null); setShowSchoolGenerator(true); }} className="text-left rounded-2xl border border-border p-5 hover:border-primary hover:bg-primary/5 transition-colors">
-                <BuildingOfficeIcon className="w-7 h-7 text-primary mb-3" /><p className="font-black text-foreground">School / partner invoice</p><p className="text-xs text-muted-foreground mt-1">Premium term, cohort, package, commission and deposit calculations.</p>
-              </button>
+        <FinanceModalPortal onEscape={() => setShowGeneratorChoice(false)}>
+          <div
+            className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setShowGeneratorChoice(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Choose invoice type"
+              className="w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border border-border bg-card p-5 sm:p-7 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div>
+                  <p className="text-lg font-black text-foreground">Create premium invoice</p>
+                  <p className="text-sm text-muted-foreground">Choose the payer. Both options use the same invoice, payment and receipt lifecycle.</p>
+                </div>
+                <button type="button" onClick={() => setShowGeneratorChoice(false)} className="p-2 rounded-xl hover:bg-muted" aria-label="Close">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowGeneratorChoice(false); setShowForm(true); }}
+                  className="text-left rounded-2xl border border-border p-5 hover:border-primary hover:bg-primary/5 transition-colors"
+                >
+                  <UserIcon className="w-7 h-7 text-primary mb-3" />
+                  <p className="font-black text-foreground">Individual invoice</p>
+                  <p className="text-xs text-muted-foreground mt-1">One student, parent or individual payer with flexible line items.</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowGeneratorChoice(false); setEditingSchoolInvoiceId(null); setShowSchoolGenerator(true); }}
+                  className="text-left rounded-2xl border border-border p-5 hover:border-primary hover:bg-primary/5 transition-colors"
+                >
+                  <BuildingOfficeIcon className="w-7 h-7 text-primary mb-3" />
+                  <p className="font-black text-foreground">School / partner invoice</p>
+                  <p className="text-xs text-muted-foreground mt-1">Premium term, cohort, package, commission and deposit calculations.</p>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </FinanceModalPortal>
       )}
 
+      {/* 2. Full-screen School Invoice Generator (Portaled above all navigation menus) */}
       {showSchoolGenerator && (
-        <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
-          <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur px-4 sm:px-6 py-3 flex items-center justify-between">
-            <div><p className="font-black text-foreground">Premium school invoice</p><p className="text-xs text-muted-foreground">Unified invoice generator</p></div>
-            <button onClick={() => { setShowSchoolGenerator(false); setEditingSchoolInvoiceId(null); setSchoolInvoicePrefill(null); }} className="p-2 rounded-xl border border-border hover:bg-muted"><XMarkIcon className="w-5 h-5" /></button>
+        <FinanceModalPortal
+          onEscape={() => {
+            setShowSchoolGenerator(false);
+            setEditingSchoolInvoiceId(null);
+            setSchoolInvoicePrefill(null);
+          }}
+        >
+          <div className="fixed inset-0 z-[300] bg-background overflow-y-auto">
+            <div className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur px-4 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] flex items-center justify-between">
+              <div>
+                <p className="font-black text-foreground">Premium school invoice</p>
+                <p className="text-xs text-muted-foreground">Unified invoice generator</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowSchoolGenerator(false); setEditingSchoolInvoiceId(null); setSchoolInvoicePrefill(null); }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-muted text-xs font-black uppercase tracking-widest"
+                aria-label="Close school invoice builder"
+              >
+                <XMarkIcon className="w-4 h-4" /> Close
+              </button>
+            </div>
+            <div className="max-w-6xl mx-auto p-4 sm:p-6 pb-20">
+              <SchoolInvoiceBuilderPanel
+                editInvoiceId={editingSchoolInvoiceId ?? undefined}
+                initialSchoolId={schoolInvoicePrefill?.schoolId}
+                initialAcademicTermId={schoolInvoicePrefill?.academicTermId}
+                initialAcademicYear={schoolInvoicePrefill?.academicYear}
+                initialTermNumber={schoolInvoicePrefill?.termNumber}
+                onSaved={() => {
+                  setShowSchoolGenerator(false);
+                  setEditingSchoolInvoiceId(null);
+                  setSchoolInvoicePrefill(null);
+                  load();
+                }}
+              />
+            </div>
           </div>
-          <div className="max-w-6xl mx-auto p-4 sm:p-6">
-            <SchoolInvoiceBuilderPanel
-              editInvoiceId={editingSchoolInvoiceId ?? undefined}
-              initialSchoolId={schoolInvoicePrefill?.schoolId}
-              initialAcademicTermId={schoolInvoicePrefill?.academicTermId}
-              initialAcademicYear={schoolInvoicePrefill?.academicYear}
-              initialTermNumber={schoolInvoicePrefill?.termNumber}
-              onSaved={() => {
-                setShowSchoolGenerator(false);
-                setEditingSchoolInvoiceId(null);
-                setSchoolInvoicePrefill(null);
-                load();
-              }}
-            />
-          </div>
-        </div>
+        </FinanceModalPortal>
       )}
 
       {showForm && (
@@ -1064,6 +1326,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         />
       )}
 
+      {/* 3. Record Payment / Overpayment Modal (Portaled + Scrollable Body + Pinned Reachable CTA Footer) */}
       {recordingPaymentInv && (() => {
         const inv = recordingPaymentInv;
         const remaining = invoiceOutstandingAmount(inv as any);
@@ -1074,195 +1337,438 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         const nextOverpaid = Math.max(0, Math.round((entered - targetDue) * 100) / 100);
         const nextRemaining = Math.max(0, Math.round((targetDue - entered) * 100) / 100);
         const payerLabel = inv.schools?.name || inv.portal_users?.full_name || 'Payer';
+        const isSavingThis = busyId === inv.id;
 
         return (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm">
+          <FinanceModalPortal onEscape={() => !isSavingThis && setRecordingPaymentInv(null)}>
             <div
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Record payment for invoice ${inv.invoice_number}`}
-              className="bg-background border border-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+              className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+              onClick={() => !isSavingThis && setRecordingPaymentInv(null)}
             >
-              <div className="flex items-center justify-between p-5 border-b border-border">
-                <div>
-                  <p className="font-black text-foreground text-sm">Record Payment / Overpayment</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Invoice #{inv.invoice_number} · {payerLabel}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setRecordingPaymentInv(null)}
-                  className="text-muted-foreground hover:text-foreground"
-                  aria-label="Close"
-                >
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-5 space-y-4">
-                <div className="grid grid-cols-3 gap-2 rounded-xl border border-border bg-card p-3 text-center">
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Invoice Total</p>
-                    <p className="text-sm font-black text-foreground mt-0.5">{formatMoney(inv.amount, inv.currency)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Already Paid</p>
-                    <p className="text-sm font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
-                      {formatMoney(alreadyPaid, inv.currency)}
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Record payment for invoice ${inv.invoice_number}`}
+                className="bg-background border border-border rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border bg-card">
+                  <div className="min-w-0">
+                    <p className="font-black text-foreground text-sm">Record Payment / Overpayment</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      Invoice #{inv.invoice_number} · {payerLabel}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                      {existingCredit > 0 ? 'Current Credit' : 'Remaining Due'}
-                    </p>
-                    <p className="text-sm font-black text-primary mt-0.5">
-                      {existingCredit > 0
-                        ? `+${formatMoney(existingCredit, inv.currency)}`
-                        : formatMoney(remaining, inv.currency)}
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRecordingPaymentInv(null)}
+                    disabled={isSavingThis}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    aria-label="Close"
+                  >
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      Amount Received ({inv.currency || 'NGN'})
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      {remaining > 0 && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setRecordAmount(String(remaining))}
-                            className="px-2 py-0.5 rounded border border-border text-[10px] font-bold hover:border-primary text-foreground"
-                          >
-                            Full ({formatMoney(remaining, inv.currency)})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setRecordAmount(String(Math.round(remaining / 2)))}
-                            className="px-2 py-0.5 rounded border border-border text-[10px] font-bold hover:border-primary text-muted-foreground hover:text-foreground"
-                          >
-                            50%
-                          </button>
-                        </>
-                      )}
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4">
+                  <div className="grid grid-cols-3 gap-2 rounded-xl border border-border bg-card p-3 text-center">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Invoice Total</p>
+                      <p className="text-sm font-black text-foreground mt-0.5">{formatMoney(inv.amount, inv.currency)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Already Paid</p>
+                      <p className="text-sm font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
+                        {formatMoney(alreadyPaid, inv.currency)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                        {existingCredit > 0 ? 'Current Credit' : 'Remaining Due'}
+                      </p>
+                      <p className="text-sm font-black text-primary mt-0.5">
+                        {existingCredit > 0
+                          ? `+${formatMoney(existingCredit, inv.currency)}`
+                          : formatMoney(remaining, inv.currency)}
+                      </p>
                     </div>
                   </div>
-                  <input
-                    type="number"
-                    min="1"
-                    step="any"
-                    value={recordAmount}
-                    onChange={(e) => setRecordAmount(e.target.value)}
-                    placeholder="Enter exact amount paid by school or client"
-                    className="w-full px-3 py-2.5 text-sm font-bold border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
-                  />
-                </div>
 
-                {entered > 0 && (
-                  <div
-                    className={`rounded-xl border p-3 text-xs ${
-                      nextOverpaid > 0
-                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
-                        : nextRemaining > 0
-                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200'
-                        : 'border-primary/30 bg-primary/10 text-foreground'
-                    }`}
-                  >
-                    {nextOverpaid > 0 ? (
-                      <p>
-                        <strong>Overpayment detected (+{formatMoney(nextOverpaid, inv.currency)}):</strong>{' '}
-                        Invoice will be marked <strong>Paid</strong> in full and{' '}
-                        <strong>+{formatMoney(nextOverpaid + existingCredit, inv.currency)}</strong> total credit will be stored on the ledger for {payerLabel}.
-                      </p>
-                    ) : nextRemaining > 0 ? (
-                      <p>
-                        <strong>Partial installment:</strong> Records{' '}
-                        <strong>{formatMoney(entered, inv.currency)}</strong> paid and leaves{' '}
-                        <strong>{formatMoney(nextRemaining, inv.currency)}</strong> remaining (status: <code>partially_paid</code>).
-                      </p>
-                    ) : (
-                      <p>
-                        <strong>Exact settlement:</strong> Marks invoice #{inv.invoice_number} <strong>Paid</strong> in full with zero remaining balance.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
-                      Payment Method
-                    </label>
-                    <select
-                      value={recordMethod}
-                      onChange={(e) => setRecordMethod(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                    <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        Amount Received ({inv.currency || 'NGN'})
+                      </label>
+                      {remaining > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {[
+                            { label: 'Full', val: remaining },
+                            { label: '75%', val: Math.round(remaining * 0.75) },
+                            { label: '50%', val: Math.round(remaining * 0.5) },
+                            { label: '25%', val: Math.round(remaining * 0.25) },
+                          ].map((preset) => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => setRecordAmount(String(preset.val))}
+                              className="px-2 py-0.5 rounded border border-border text-[10px] font-bold hover:border-primary text-foreground bg-card"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      step="any"
+                      value={recordAmount}
+                      onChange={(e) => setRecordAmount(e.target.value)}
+                      placeholder="Enter exact amount paid by school or client"
+                      className="w-full px-3 py-2.5 text-sm font-bold border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  {entered > 0 && (
+                    <div
+                      className={`rounded-xl border p-3 text-xs ${
+                        nextOverpaid > 0
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                          : nextRemaining > 0
+                          ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200'
+                          : 'border-primary/30 bg-primary/10 text-foreground'
+                      }`}
                     >
-                      <option value="bank_transfer">Bank Transfer</option>
-                      <option value="pos">POS Terminal</option>
-                      <option value="cash">Cash</option>
-                      <option value="cheque">Cheque</option>
-                      <option value="mobile_money">Mobile Money</option>
-                      <option value="manual">Manual / Other</option>
-                    </select>
+                      {nextOverpaid > 0 ? (
+                        <p>
+                          <strong>Overpayment detected (+{formatMoney(nextOverpaid, inv.currency)}):</strong>{' '}
+                          Invoice will be marked <strong>Paid</strong> in full and{' '}
+                          <strong>+{formatMoney(nextOverpaid + existingCredit, inv.currency)}</strong> total credit will be stored on the ledger for {payerLabel}.
+                        </p>
+                      ) : nextRemaining > 0 ? (
+                        <p>
+                          <strong>Partial installment:</strong> Records{' '}
+                          <strong>{formatMoney(entered, inv.currency)}</strong> paid and leaves{' '}
+                          <strong>{formatMoney(nextRemaining, inv.currency)}</strong> remaining (status: <code>partially_paid</code>).
+                        </p>
+                      ) : (
+                        <p>
+                          <strong>Exact settlement:</strong> Marks invoice #{inv.invoice_number} <strong>Paid</strong> in full with zero remaining balance.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                        Payment Method
+                      </label>
+                      <select
+                        value={recordMethod}
+                        onChange={(e) => setRecordMethod(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                      >
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="pos">POS Terminal</option>
+                        <option value="cash">Cash</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="mobile_money">Mobile Money</option>
+                        <option value="manual">Manual / Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                        Bank / Receipt Reference (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={recordReference}
+                        onChange={(e) => setRecordReference(e.target.value)}
+                        placeholder="e.g. TRF-9081234"
+                        className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                      />
+                    </div>
                   </div>
+
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
-                      Bank / Receipt Reference (optional)
+                      Finance Note (optional)
                     </label>
                     <input
                       type="text"
-                      value={recordReference}
-                      onChange={(e) => setRecordReference(e.target.value)}
-                      placeholder="e.g. TRF-9081234"
+                      value={recordNote}
+                      onChange={(e) => setRecordNote(e.target.value)}
+                      placeholder="e.g. School paid ₦50k extra toward next term"
                       className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
-                    Finance Note (optional)
+                  <label className="flex items-start gap-2.5 rounded-xl border border-border bg-card/70 px-3 py-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={recordNotifyPayer}
+                      onChange={(e) => setRecordNotifyPayer(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span className="text-xs text-foreground leading-snug">
+                      <span className="font-bold">Email official receipt / balance update automatically</span>
+                      <span className="block text-[11px] text-muted-foreground">
+                        {resolvedEmail(inv)
+                          ? `Will notify ${resolvedEmail(inv)} + prepare 1-click WhatsApp receipt`
+                          : 'Generates PDF receipt + 1-click WhatsApp share link'}
+                      </span>
+                    </span>
                   </label>
-                  <input
-                    type="text"
-                    value={recordNote}
-                    onChange={(e) => setRecordNote(e.target.value)}
-                    placeholder="e.g. School paid ₦50k extra toward next term"
-                    className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
-                  />
                 </div>
-              </div>
 
-              <div className="p-5 border-t border-border flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRecordingPaymentInv(null)}
-                  className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void submitRecordedPayment()}
-                  disabled={busyId === inv.id || entered <= 0}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-lg"
-                >
-                  <CheckBadgeIcon className="w-4 h-4" />
-                  {busyId === inv.id
-                    ? 'Recording…'
-                    : nextOverpaid > 0
-                    ? `Record & Save +${formatMoney(nextOverpaid, inv.currency)} Credit`
-                    : nextRemaining > 0
-                    ? 'Record Partial Payment'
-                    : 'Confirm & Mark Paid'}
-                </button>
+                {/* Sticky Pinned Footer — always reachable above mobile/desktop menus */}
+                <div className="shrink-0 border-t border-border bg-card px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRecordingPaymentInv(null)}
+                    disabled={isSavingThis}
+                    className="px-4 py-2.5 bg-muted hover:bg-muted/80 text-xs font-black uppercase tracking-widest text-foreground rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void submitRecordedPayment()}
+                    disabled={isSavingThis || entered <= 0}
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-sm transition-colors"
+                  >
+                    {isSavingThis ? (
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckBadgeIcon className="w-4 h-4" />
+                    )}
+                    {isSavingThis
+                      ? 'Recording…'
+                      : nextOverpaid > 0
+                      ? `Record +${formatMoney(nextOverpaid, inv.currency)} Credit`
+                      : nextRemaining > 0
+                      ? 'Record Partial Payment'
+                      : 'Confirm & Mark Paid'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          </FinanceModalPortal>
+        );
+      })()}
+
+      {/* 4. Smart Multi-Channel Invoice & Reminder Communication Modal */}
+      {commModalInv && (() => {
+        const inv = commModalInv;
+        const diag = analyzeInvoiceIntelligence(inv);
+        const payerLabel =
+          inv.schools?.name || inv.resolved_recipient?.name || inv.portal_users?.full_name || 'Client';
+        const isSending = busyId === inv.id;
+        const waHref = buildClientWhatsAppHref(inv, {
+          mode: commMode,
+          stage: commStage,
+          phone: commPhone,
+          note: commNote,
+        });
+
+        return (
+          <FinanceModalPortal onEscape={() => !isSending && setCommModalInv(null)}>
+            <div
+              className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+              onClick={() => !isSending && setCommModalInv(null)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Communicate invoice ${inv.invoice_number}`}
+                className="bg-background border border-border rounded-t-3xl sm:rounded-2xl w-full sm:max-w-xl max-h-[92dvh] sm:max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border bg-card">
+                  <div className="min-w-0">
+                    <p className="font-black text-foreground text-sm">Smart Invoice &amp; Reminder Dispatch</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      Invoice #{inv.invoice_number} · {payerLabel} · Due: {formatMoney(diag.remaining, inv.currency)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCommModalInv(null)}
+                    disabled={isSending}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                    aria-label="Close"
+                  >
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4">
+                  {/* Message Type / Escalation Stage */}
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Communication Stage
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCommMode('issue')}
+                        className={`text-left rounded-xl border p-2.5 transition-colors ${
+                          commMode === 'issue'
+                            ? 'border-primary bg-primary/10 text-foreground'
+                            : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <p className="text-xs font-black">Official Invoice</p>
+                        <p className="text-[10px] opacity-80 mt-0.5">Paystack checkout + bank details</p>
+                      </button>
+                      {([
+                        { s: 1 as const, title: 'Stage #1 · Gentle Notice', sub: 'Friendly summary & due date' },
+                        { s: 2 as const, title: 'Stage #2 · Due Soon / Balance', sub: 'Remaining balance follow-up' },
+                        { s: 3 as const, title: 'Stage #3 · Urgent Overdue', sub: 'Final escalation notice' },
+                      ]).map((opt) => {
+                        const selected = commMode === 'remind' && commStage === opt.s;
+                        const isRecommended = diag.recommendedReminderStage === opt.s;
+                        return (
+                          <button
+                            key={opt.s}
+                            type="button"
+                            onClick={() => {
+                              setCommMode('remind');
+                              setCommStage(opt.s);
+                            }}
+                            className={`text-left rounded-xl border p-2.5 transition-colors ${
+                              selected
+                                ? opt.s === 3
+                                  ? 'border-rose-500 bg-rose-500/10 text-foreground'
+                                  : 'border-amber-500 bg-amber-500/10 text-foreground'
+                                : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-xs font-black truncate">{opt.title}</p>
+                              {isRecommended && (
+                                <span className="shrink-0 px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[9px] font-black uppercase">
+                                  Smart pick
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] opacity-80 mt-0.5">{opt.sub}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Recipient Contact Resolution */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                          Recipient Email
+                        </label>
+                        {inv.resolved_recipient?.source && inv.resolved_recipient.source !== 'none' && (
+                          <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
+                            Auto: {inv.resolved_recipient.source.replace('_', ' ')}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="email"
+                        value={commEmail}
+                        onChange={(e) => setCommEmail(e.target.value)}
+                        placeholder="bursar@school.edu.ng or parent@email.com"
+                        className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                        WhatsApp Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={commPhone}
+                        onChange={(e) => setCommPhone(e.target.value)}
+                        placeholder="+2348012345678"
+                        className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {inv.stream === 'school' && (
+                    <p className="text-[11px] text-muted-foreground -mt-2">
+                      Any email or WhatsApp number entered here is automatically saved to this school&apos;s billing profile for future 1-click reminders.
+                    </p>
+                  )}
+
+                  {/* Custom Note */}
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Personal Finance Note (optional)
+                    </label>
+                    <textarea
+                      value={commNote}
+                      onChange={(e) => setCommNote(e.target.value)}
+                      rows={2}
+                      placeholder="e.g. Kindly include invoice number as bank transfer narration. Thank you!"
+                      className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary resize-none"
+                    />
+                  </div>
+
+                  {commPhone.trim() && (
+                    <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={commSendWhatsAppApi}
+                        onChange={(e) => setCommSendWhatsAppApi(e.target.checked)}
+                      />
+                      <span className="font-semibold">
+                        Also dispatch via WhatsApp Cloud API when sending email
+                      </span>
+                    </label>
+                  )}
+                </div>
+
+                {/* Sticky Pinned Footer */}
+                <div className="shrink-0 border-t border-border bg-card px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCommModalInv(null)}
+                    disabled={isSending}
+                    className="px-3.5 py-2 bg-muted hover:bg-muted/80 text-xs font-black uppercase tracking-widest text-foreground rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <a
+                    href={waHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-sm"
+                  >
+                    Open WhatsApp
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => void submitCommunication()}
+                    disabled={isSending || !commEmail.trim()}
+                    className="inline-flex items-center gap-1.5 px-5 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest rounded-xl shadow-sm"
+                  >
+                    {isSending ? (
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <EnvelopeIcon className="w-4 h-4" />
+                    )}
+                    {isSending
+                      ? 'Sending…'
+                      : commMode === 'issue'
+                      ? 'Send Invoice Email'
+                      : `Send Stage #${commStage} Email`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </FinanceModalPortal>
         );
       })()}
 
@@ -1497,21 +2003,31 @@ function QuickInvoiceForm({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
-      <div role="dialog" aria-modal="true" className="bg-background border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <div>
-            <p className="font-black text-foreground text-sm">Quick invoice</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Single-payer invoice. Use the school invoice builder for term billing.
-            </p>
+    <FinanceModalPortal onEscape={() => !saving && onClose()}>
+      <div
+        className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+        onClick={() => !saving && onClose()}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Quick individual invoice"
+          className="bg-background border border-border rounded-t-3xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[92dvh] sm:max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border bg-card">
+            <div>
+              <p className="font-black text-foreground text-sm">Quick invoice</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Single-payer invoice. Use the school invoice builder for term billing.
+              </p>
+            </div>
+            <button type="button" onClick={onClose} disabled={saving} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" aria-label="Close">
+              <XMarkIcon className="w-5 h-5" />
+            </button>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <XMarkIcon className="w-5 h-5" />
-          </button>
-        </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4">
           <div>
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -1705,46 +2221,52 @@ function QuickInvoiceForm({
           </label>
         </div>
 
-        <div className="p-5 border-t border-border flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Total
-            </p>
-            <p className="text-xl font-black text-foreground">{formatMoney(total, currency)}</p>
+        <div className="shrink-0 bg-card px-5 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Total
+              </p>
+              <p className="text-xl font-black text-foreground">{formatMoney(total, currency)}</p>
+            </div>
+            <div className="flex gap-2 flex-wrap justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="px-4 py-2 bg-muted hover:bg-muted/80 text-xs font-black uppercase tracking-widest text-foreground rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={openPreview}
+                disabled={saving || total === 0 || !paymentAccountId}
+                className="inline-flex items-center gap-1 px-4 py-2 border border-border hover:border-primary text-xs font-black uppercase tracking-widest rounded-xl disabled:opacity-40"
+                title="Live preview before issuing"
+              >
+                <EyeIcon className="w-4 h-4" /> Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={saving || !paymentAccountId}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-xl disabled:opacity-50 shadow-sm"
+              >
+                {saving ? (
+                  'Creating…'
+                ) : (
+                  <>
+                    <CheckCircleIcon className="w-4 h-4" /> Create invoice
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2 flex-wrap justify-end">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={openPreview}
-              disabled={saving || total === 0 || !paymentAccountId}
-              className="inline-flex items-center gap-1 px-4 py-2 border border-border hover:border-primary text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-40"
-              title="Live preview before issuing"
-            >
-              <EyeIcon className="w-4 h-4" /> Preview
-            </button>
-            <button
-              onClick={() => void save()}
-              disabled={saving || !paymentAccountId}
-              className="inline-flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
-            >
-              {saving ? (
-                'Creating…'
-              ) : (
-                <>
-                  <CheckCircleIcon className="w-4 h-4" /> Create invoice
-                </>
-              )}
-            </button>
-          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Review with Preview, then create from the preview — or create here when you are ready.
+          </p>
         </div>
-        <p className="px-5 pb-4 text-[11px] text-muted-foreground">
-          Review with Preview, then create from the preview — or create here when you are ready.
-        </p>
       </div>
 
       {preview && (
@@ -1760,7 +2282,8 @@ function QuickInvoiceForm({
           }}
         />
       )}
-    </div>
+      </div>
+    </FinanceModalPortal>
   );
 }
 

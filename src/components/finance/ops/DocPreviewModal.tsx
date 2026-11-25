@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import SmartDocument from '@/components/finance/SmartDocument';
+import { FinanceModalPortal } from '@/components/finance/FinanceModalPortal';
 import {
   XMarkIcon,
   CheckBadgeIcon,
@@ -199,23 +200,16 @@ export function DocPreviewModal({
 
   const anyBusy = busy !== null;
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !anyBusy) onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [anyBusy, onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-[100] bg-foreground/50 backdrop-blur-md overflow-y-auto flex flex-col"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${type === 'invoice' ? 'Invoice' : 'Receipt'} ${data.number} preview`}
-    >
-      {/* Full-width sticky top toolbar (mobile & desktop friendly) */}
-      <div className="sticky top-0 z-[110] bg-card/95 backdrop-blur-md border-b border-border shadow-sm">
+    <FinanceModalPortal onEscape={() => !anyBusy && onClose()}>
+      <div
+        className="fixed inset-0 z-[300] bg-black/65 backdrop-blur-md overflow-y-auto flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${type === 'invoice' ? 'Invoice' : 'Receipt'} ${data.number} preview`}
+      >
+        {/* Full-width sticky top toolbar (mobile & desktop friendly) */}
+        <div className="sticky top-0 z-[310] bg-card/95 backdrop-blur-md border-b border-border shadow-sm pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-[920px] mx-auto px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 shrink-0">
             <button
@@ -434,6 +428,7 @@ export function DocPreviewModal({
         </div>
       </div>
     </div>
+    </FinanceModalPortal>
   );
 }
 

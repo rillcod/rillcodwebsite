@@ -27,7 +27,8 @@ import {
   type FinanceStream,
 } from '@/lib/finance/streams';
 import { contactDirectorySearchUrl, txPrimaryLabel } from '@/lib/finance/contact-link';
-import { invoiceOverpaidAmount } from '@/lib/finance/invoice-state';
+import { invoiceOutstandingAmount, invoiceOverpaidAmount } from '@/lib/finance/invoice-state';
+import { analyzeInvoiceIntelligence } from '@/lib/finance/smart-communication';
 
 type Role = 'admin' | 'school' | 'teacher' | 'student' | 'parent' | string;
 
@@ -59,6 +60,9 @@ interface InvoiceRow {
   id: string;
   invoice_number: string;
   amount: number;
+  original_amount?: number | null;
+  amount_paid?: number | null;
+  amount_remaining?: number | null;
   currency: string;
   status: string;
   due_date: string | null;
@@ -67,7 +71,9 @@ interface InvoiceRow {
   billing_cycle_id?: string | null;
   stream?: FinanceStream | null;
   metadata?: Record<string, any> | null;
+  schools?: { name?: string } | null;
   portal_users?: { full_name?: string } | null;
+  resolved_recipient?: { name?: string | null; email?: string | null; phone?: string | null } | null;
 }
 
 function txStream(t: Transaction): FinanceStream {
@@ -208,7 +214,7 @@ export default function MoneyHubPage() {
       paidCount: paidTxs.length,
       pendingSum: pendingTxs.reduce((s, t) => s + Number(t.amount || 0), 0),
       pendingCount: pendingTxs.length,
-      outstandingSum: outstanding.reduce((s, i) => s + Number(i.amount || 0), 0),
+      outstandingSum: outstanding.reduce((s, i) => s + invoiceOutstandingAmount(i as any), 0),
       outstandingCount: outstanding.length,
       overdueCount: overdue.length,
       overpaidSum,
@@ -219,6 +225,21 @@ export default function MoneyHubPage() {
       ),
     };
   }, [paidTxs, pendingTxs, outstanding, overdue, invoices]);
+
+  const priorityInvoices = useMemo(() => {
+    const rank: Record<string, number> = { overdue: 0, due_soon: 1, partial: 2, open: 3 };
+    return outstanding
+      .filter((inv) => !(inv as any).amounts_hidden)
+      .map((inv) => ({ inv, diag: analyzeInvoiceIntelligence(inv as any) }))
+      .filter((x) => x.diag.remaining > 0)
+      .sort((a, b) => {
+        const ra = rank[a.diag.urgency] ?? 9;
+        const rb = rank[b.diag.urgency] ?? 9;
+        if (ra !== rb) return ra - rb;
+        return b.diag.remaining - a.diag.remaining;
+      })
+      .slice(0, 5);
+  }, [outstanding]);
 
   const recentTxs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -381,6 +402,67 @@ export default function MoneyHubPage() {
         </div>
       )}
 
+      {/* Smart Priority Invoice Queue (staff) */}
+      {isStaff && priorityInvoices.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-primary" />
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-foreground">
+                Smart Collection Queue
+              </h3>
+            </div>
+            <Link
+              href="/dashboard/finance?workspace=invoices&ops=invoices"
+              className="text-[11px] font-bold text-primary hover:underline inline-flex items-center gap-1"
+            >
+              Manage all ({outstanding.length}) <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <ul className="divide-y divide-border">
+            {priorityInvoices.map(({ inv, diag }) => {
+              const payerName =
+                inv.schools?.name || inv.resolved_recipient?.name || inv.portal_users?.full_name || 'Client';
+              const badgeCls =
+                diag.urgency === 'overdue'
+                  ? 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                  : diag.urgency === 'due_soon'
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                  : 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300';
+              return (
+                <li key={inv.id} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-mono font-bold text-muted-foreground">#{inv.invoice_number}</span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${badgeCls}`}>
+                        {diag.urgencyLabel}
+                      </span>
+                      {diag.remindersSentCount > 0 && (
+                        <span className="text-[10px] font-bold text-muted-foreground">
+                          Reminded ×{diag.remindersSentCount}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-bold text-foreground truncate mt-0.5">{payerName}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-black text-foreground">
+                      {formatMoney(diag.remaining, inv.currency)}
+                    </p>
+                    <Link
+                      href="/dashboard/finance?workspace=invoices&ops=invoices"
+                      className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                    >
+                      Collect / Remind →
+                    </Link>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {/* Payer outstanding strip */}
       {isPayer && outstanding.length > 0 && (
         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 overflow-hidden">
@@ -390,15 +472,22 @@ export default function MoneyHubPage() {
             <span className="ml-auto text-[10px] text-muted-foreground">{outstanding.length} open</span>
           </div>
           <ul className="divide-y divide-border">
-            {outstanding.slice(0, 8).map((inv) => (
-              <li key={inv.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold truncate">#{inv.invoice_number}</p>
-                  <p className="text-[11px] text-muted-foreground">Due {formatDate(inv.due_date)}</p>
-                </div>
-                <p className="text-sm font-black">{formatMoney(inv.amount, inv.currency)}</p>
-              </li>
-            ))}
+            {outstanding.slice(0, 8).map((inv) => {
+              const rem = invoiceOutstandingAmount(inv as any);
+              const paid = Math.max(0, Number(inv.amount_paid ?? 0) || 0);
+              return (
+                <li key={inv.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold truncate">#{inv.invoice_number}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Due {formatDate(inv.due_date)}
+                      {paid > 0 ? ` · Paid ${formatMoney(paid, inv.currency)}` : ''}
+                    </p>
+                  </div>
+                  <p className="text-sm font-black">{formatMoney(rem, inv.currency)}</p>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

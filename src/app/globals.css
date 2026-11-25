@@ -201,6 +201,7 @@
     [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]:not(.mobile-native-dialog):not([role="alertdialog"]):not(.loading-indicator):not([data-loading="true"]):not(:has([class*="animate-spin"])) {
       align-items: flex-end !important;
       padding: 0 !important;
+      z-index: 120 !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
     }
@@ -245,7 +246,7 @@
      pinned footers rather than being flattened into one scrolling block. */
   @media (min-width: 768px) {
     [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]
-      > [class*="max-w-"]:not([class*="max-h-"]):not([class*="overflow-y-"]):not([class*="overflow-hidden"]) {
+      > [class*="max-w-"]:not([class*="max-h-"]):not([class*="overflow-y-"]):not(.flex-col) {
       max-height: calc(100dvh - 4rem);
       overflow-y: auto;
       overscroll-behavior: contain;

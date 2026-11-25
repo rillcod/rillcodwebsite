@@ -25,6 +25,7 @@ import IndividualFinancePortal from '@/components/finance/IndividualFinancePorta
 import { FinanceStickyActions } from '@/components/finance/workspaces/FinanceStickyActions';
 import { ReconciliationFindingsPanel } from '@/components/finance/workspaces/ReconciliationFindingsPanel';
 import { SchoolBillingDocsPanel } from '@/components/finance/ops/SchoolBillingDocsPanel';
+import { FinanceModalPortal } from '@/components/finance/FinanceModalPortal';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import {
   academicYearOptions,
@@ -992,132 +993,143 @@ function SubscriptionsTab({ profile }: { profile: any }) {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-card border-b border-border flex items-center justify-between px-5 py-4 z-10">
-              <h3 className="font-black text-foreground">{editId ? 'Edit Subscription' : 'New Subscription'}</h3>
-              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
-                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              {isAdmin && (
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
-                  <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                    <option value="">Select school…</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Plan Name *</label>
-                  <input value={form.plan_name} onChange={e => setForm(f => ({ ...f, plan_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount</label>
-                  <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
-                  <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                    <option>NGN</option><option>USD</option><option>GBP</option>
-                  </select>
-                </div>
+        <FinanceModalPortal onEscape={() => !saving && setShowForm(false)}>
+          <div
+            className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => !saving && setShowForm(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={editId ? 'Edit Subscription' : 'New Subscription'}
+              className="bg-card border border-border rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 bg-card border-b border-border flex items-center justify-between px-5 py-4">
+                <h3 className="font-black text-foreground">{editId ? 'Edit Subscription' : 'New Subscription'}</h3>
+                <button type="button" onClick={() => setShowForm(false)} className="p-1.5 hover:bg-muted rounded-lg transition-colors" aria-label="Close">
+                  <XMarkIcon className="w-5 h-5 text-muted-foreground" />
+                </button>
               </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4">
+                {isAdmin && (
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
+                    <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                      <option value="">Select school…</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                )}
 
-              {/* Billing Cycle — with Termly option */}
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Billing Cycle</label>
-                <select value={form.billing_cycle_display}
-                  onChange={e => setForm(f => ({ ...f, billing_cycle_display: e.target.value, billing_cycle: e.target.value === 'termly' ? 'yearly' : e.target.value as any }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="yearly">Annual</option>
-                  <option value="termly">Termly (Nigerian School Term)</option>
-                </select>
-              </div>
-
-              {/* Term fields — only visible when termly */}
-              {form.billing_cycle_display === 'termly' && (
-                <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 space-y-3">
-                  <p className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
-                    <CalendarDaysIcon className="w-3.5 h-3.5" /> Nigerian School Term
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">Term</label>
-                      <select value={form.term} onChange={e => setForm(f => ({ ...f, term: e.target.value as Term }))}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                        {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">Academic Year</label>
-                      <select value={form.academic_year} onChange={e => setForm(f => ({ ...f, academic_year: e.target.value }))}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                        {academicYears.map(y => <option key={y} value={y}>{y}</option>)}
-                      </select>
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Plan Name *</label>
+                    <input value={form.plan_name} onChange={e => setForm(f => ({ ...f, plan_name: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount</label>
+                    <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
+                    <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                      <option>NGN</option><option>USD</option><option>GBP</option>
+                    </select>
                   </div>
                 </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-3">
+                {/* Billing Cycle — with Termly option */}
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Status</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as SubStatus }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                    {Object.entries(SUB_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Billing Cycle</label>
+                  <select value={form.billing_cycle_display}
+                    onChange={e => setForm(f => ({ ...f, billing_cycle_display: e.target.value, billing_cycle: e.target.value === 'termly' ? 'yearly' : e.target.value as any }))}
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Annual</option>
+                    <option value="termly">Termly (Nigerian School Term)</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Plan Type</label>
-                  <input value={form.plan_type} onChange={e => setForm(f => ({ ...f, plan_type: e.target.value }))} placeholder="e.g. basic"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Start Date</label>
-                  <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">End Date</label>
-                  <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Max Students</label>
-                  <input type="number" value={form.max_students} onChange={e => setForm(f => ({ ...f, max_students: e.target.value }))} placeholder="Unlimited"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Max Teachers</label>
-                  <input type="number" value={form.max_teachers} onChange={e => setForm(f => ({ ...f, max_teachers: e.target.value }))} placeholder="Unlimited"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+
+                {/* Term fields — only visible when termly */}
+                {form.billing_cycle_display === 'termly' && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 space-y-3">
+                    <p className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
+                      <CalendarDaysIcon className="w-3.5 h-3.5" /> Nigerian School Term
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5">Term</label>
+                        <select value={form.term} onChange={e => setForm(f => ({ ...f, term: e.target.value as Term }))}
+                          className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                          {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5">Academic Year</label>
+                        <select value={form.academic_year} onChange={e => setForm(f => ({ ...f, academic_year: e.target.value }))}
+                          className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                          {academicYears.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Status</label>
+                    <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as SubStatus }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                      {Object.entries(SUB_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Plan Type</label>
+                    <input value={form.plan_type} onChange={e => setForm(f => ({ ...f, plan_type: e.target.value }))} placeholder="e.g. basic"
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Start Date</label>
+                    <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">End Date</label>
+                    <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Max Students</label>
+                    <input type="number" value={form.max_students} onChange={e => setForm(f => ({ ...f, max_students: e.target.value }))} placeholder="Unlimited"
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Max Teachers</label>
+                    <input type="number" value={form.max_teachers} onChange={e => setForm(f => ({ ...f, max_teachers: e.target.value }))} placeholder="Unlimited"
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button onClick={save} disabled={saving}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors">
-                  {saving ? 'Saving…' : editId ? 'Update' : 'Create'}
-                </button>
-                <button onClick={() => setShowForm(false)}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-xl text-sm transition-colors">
+              <div className="shrink-0 border-t border-border bg-card px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] flex gap-3">
+                <button type="button" onClick={() => setShowForm(false)}
+                  className="px-4 py-2.5 bg-muted hover:bg-muted/80 border border-border text-foreground font-bold rounded-xl text-sm transition-colors">
                   Cancel
+                </button>
+                <button type="button" onClick={save} disabled={saving}
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors shadow-sm">
+                  {saving ? 'Saving…' : editId ? 'Update Subscription' : 'Create Subscription'}
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </FinanceModalPortal>
       )}
     </div>
   );
@@ -1300,62 +1312,73 @@ function SettlementsTab({ profile }: { profile: any }) {
 
       {/* Create / Edit Settlement Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h3 className="font-black text-foreground">{editId ? 'Edit Settlement' : 'New Settlement'}</h3>
-              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-muted rounded-lg">
-                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              {!editId && (
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
-                  <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                    <option value="">Select school…</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount *</label>
-                  <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
-                  <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                    <option>NGN</option><option>USD</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Reference</label>
-                <input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="e.g. TRF-2025-001"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Notes</label>
-                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary resize-none" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={save} disabled={saving}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors">
-                  {saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Settlement'}
+        <FinanceModalPortal onEscape={() => !saving && setShowForm(false)}>
+          <div
+            className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => !saving && setShowForm(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={editId ? 'Edit Settlement' : 'New Settlement'}
+              className="bg-card border border-border rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[92dvh] sm:max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border bg-card">
+                <h3 className="font-black text-foreground">{editId ? 'Edit Settlement' : 'New Settlement'}</h3>
+                <button type="button" onClick={() => setShowForm(false)} className="p-1.5 hover:bg-muted rounded-lg" aria-label="Close">
+                  <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                 </button>
-                <button onClick={() => setShowForm(false)}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-xl text-sm transition-colors">
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4">
+                {!editId && (
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
+                    <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                      <option value="">Select school…</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount *</label>
+                    <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
+                    <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                      <option>NGN</option><option>USD</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Reference</label>
+                  <input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="e.g. TRF-2025-001"
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Notes</label>
+                  <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary resize-none" />
+                </div>
+              </div>
+              <div className="shrink-0 border-t border-border bg-card px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] flex gap-3">
+                <button type="button" onClick={() => setShowForm(false)}
+                  className="px-4 py-2.5 bg-muted hover:bg-muted/80 border border-border text-foreground font-bold rounded-xl text-sm transition-colors">
                   Cancel
+                </button>
+                <button type="button" onClick={save} disabled={saving}
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors shadow-sm">
+                  {saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Settlement'}
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </FinanceModalPortal>
       )}
     </div>
   );
@@ -2061,12 +2084,12 @@ function SetupTab({ profile }: { profile: any }) {
                 </div>
                 <div className="flex gap-3">
                   <button onClick={async () => { await saveContact(); setEditingContact(false); }} disabled={saving}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-bold rounded-xl transition-colors">
                     {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     Save Contact
                   </button>
                   {isSchool && editingContact && (
-                    <button onClick={() => setEditingContact(false)} className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground text-sm rounded-xl transition-colors">
+                    <button onClick={() => setEditingContact(false)} className="px-4 py-2.5 bg-muted hover:bg-muted/80 border border-border text-muted-foreground text-sm rounded-xl transition-colors">
                       Cancel
                     </button>
                   )}
@@ -2079,97 +2102,108 @@ function SetupTab({ profile }: { profile: any }) {
 
       {/* Account Form Modal */}
       {showAcctForm && (
-        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-card border-b border-border flex items-center justify-between px-5 py-4 z-10">
-              <h3 className="font-black text-foreground">{editAcct ? 'Edit Account' : 'Add Payment Account'}</h3>
-              <button onClick={() => { setShowAcctForm(false); setEditAcct(null); }} className="p-1.5 hover:bg-muted rounded-lg">
-                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              {/* Admin can pick owner type; school role is locked to their own school */}
-              {isAdmin ? (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Owner</label>
-                    <select value={acctForm.owner_type} onChange={e => setAcctForm(f => ({ ...f, owner_type: e.target.value as any }))}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                      <option value="rillcod">Rillcod Technologies</option>
-                      <option value="school">School</option>
-                    </select>
-                  </div>
-                  {acctForm.owner_type === 'school' && (
+        <FinanceModalPortal onEscape={() => { if (!saving) { setShowAcctForm(false); setEditAcct(null); } }}>
+          <div
+            className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => { if (!saving) { setShowAcctForm(false); setEditAcct(null); } }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={editAcct ? 'Edit Account' : 'Add Payment Account'}
+              className="bg-card border border-border rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 bg-card border-b border-border flex items-center justify-between px-5 py-4">
+                <h3 className="font-black text-foreground">{editAcct ? 'Edit Account' : 'Add Payment Account'}</h3>
+                <button type="button" onClick={() => { setShowAcctForm(false); setEditAcct(null); }} className="p-1.5 hover:bg-muted rounded-lg" aria-label="Close">
+                  <XMarkIcon className="w-5 h-5 text-muted-foreground" />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4">
+                {/* Admin can pick owner type; school role is locked to their own school */}
+                {isAdmin ? (
+                  <>
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">School</label>
-                      <select value={acctForm.school_id} onChange={e => setAcctForm(f => ({ ...f, school_id: e.target.value }))}
+                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Owner</label>
+                      <select value={acctForm.owner_type} onChange={e => setAcctForm(f => ({ ...f, owner_type: e.target.value as any }))}
                         className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                        <option value="">Select school…</option>
-                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        <option value="rillcod">Rillcod Technologies</option>
+                        <option value="school">School</option>
                       </select>
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="bg-muted/30 rounded-xl px-4 py-3 text-xs text-muted-foreground">
-                  <span className="font-bold text-foreground">School Account</span> — will be visible to parents alongside the company account.
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Label *</label>
-                <input value={acctForm.label} onChange={e => setAcctForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. School Fees Account"
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+                    {acctForm.owner_type === 'school' && (
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5">School</label>
+                        <select value={acctForm.school_id} onChange={e => setAcctForm(f => ({ ...f, school_id: e.target.value }))}
+                          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                          <option value="">Select school…</option>
+                          {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-muted/30 rounded-xl px-4 py-3 text-xs text-muted-foreground">
+                    <span className="font-bold text-foreground">School Account</span> — will be visible to parents alongside the company account.
+                  </div>
+                )}
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Bank Name *</label>
-                  <select value={acctForm.bank_name} onChange={e => setAcctForm(f => ({ ...f, bank_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                    <option value="">Select bank…</option>
-                    {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Type</label>
-                  <select value={acctForm.account_type} onChange={e => setAcctForm(f => ({ ...f, account_type: e.target.value as any }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
-                    <option value="savings">Savings</option>
-                    <option value="current">Current</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Number *</label>
-                  <input value={acctForm.account_number} onChange={e => setAcctForm(f => ({ ...f, account_number: e.target.value }))} maxLength={10}
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Label *</label>
+                  <input value={acctForm.label} onChange={e => setAcctForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. School Fees Account"
                     className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Bank Name *</label>
+                    <select value={acctForm.bank_name} onChange={e => setAcctForm(f => ({ ...f, bank_name: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                      <option value="">Select bank…</option>
+                      {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Type</label>
+                    <select value={acctForm.account_type} onChange={e => setAcctForm(f => ({ ...f, account_type: e.target.value as any }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                      <option value="savings">Savings</option>
+                      <option value="current">Current</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Number *</label>
+                    <input value={acctForm.account_number} onChange={e => setAcctForm(f => ({ ...f, account_number: e.target.value }))} maxLength={10}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Name *</label>
+                    <input value={acctForm.account_name} onChange={e => setAcctForm(f => ({ ...f, account_name: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Name *</label>
-                  <input value={acctForm.account_name} onChange={e => setAcctForm(f => ({ ...f, account_name: e.target.value }))}
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Payment Note</label>
+                  <input value={acctForm.payment_note} onChange={e => setAcctForm(f => ({ ...f, payment_note: e.target.value }))} placeholder="Optional note shown to payers"
                     className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-foreground font-bold">Active</span>
+                  <Toggle checked={acctForm.is_active} onChange={v => setAcctForm(f => ({ ...f, is_active: v }))} />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Payment Note</label>
-                <input value={acctForm.payment_note} onChange={e => setAcctForm(f => ({ ...f, payment_note: e.target.value }))} placeholder="Optional note shown to payers"
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground font-bold">Active</span>
-                <Toggle checked={acctForm.is_active} onChange={v => setAcctForm(f => ({ ...f, is_active: v }))} />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={saveAccount} disabled={saving}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors">
-                  {saving ? 'Saving…' : editAcct ? 'Update' : 'Add Account'}
-                </button>
-                <button onClick={() => { setShowAcctForm(false); setEditAcct(null); }}
-                  className="px-4 py-2.5 bg-background hover:bg-muted border border-border text-muted-foreground rounded-xl text-sm transition-colors">
+              <div className="shrink-0 border-t border-border bg-card px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] flex gap-3">
+                <button type="button" onClick={() => { setShowAcctForm(false); setEditAcct(null); }}
+                  className="px-4 py-2.5 bg-muted hover:bg-muted/80 border border-border text-foreground font-bold rounded-xl text-sm transition-colors">
                   Cancel
+                </button>
+                <button type="button" onClick={saveAccount} disabled={saving}
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors shadow-sm">
+                  {saving ? 'Saving…' : editAcct ? 'Update Account' : 'Add Account'}
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </FinanceModalPortal>
       )}
     </div>
   );

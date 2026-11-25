@@ -62,6 +62,8 @@ const MONEY_FIELDS = [
   'amount', 'original_amount', 'amount_paid', 'amount_remaining',
   'currency', 'items', 'notes', 'payment_link', 'metadata',
   'payment_transaction_id', 'invoice_number',
+  'billing_contacts', 'resolved_recipient',
+  'proof_count', 'latest_proof_at', 'latest_proof_status',
 ] as const;
 
 /**
