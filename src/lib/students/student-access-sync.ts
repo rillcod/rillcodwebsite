@@ -6,6 +6,16 @@ import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 const SPECIALIZED_RE = /\b(summer\s*school|bootcamp|coding\s*club|holiday|speciali[sz]ed|rillcod\s*academy)\b/i;
 const SPECIALIZED_TYPES = new Set(['bootcamp', 'summer_school', 'in_person', 'online', 'independent']);
 
+/** Postgres CHECK constraint on students.status — only these values are accepted. */
+const STUDENT_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  GRADUATED: 'graduated',
+  INACTIVE: 'inactive',
+} as const;
+type StudentStatus = (typeof STUDENT_STATUS)[keyof typeof STUDENT_STATUS];
+
 function isSpecializedContext(enrollmentType?: string | null, label?: string | null): boolean {
   const et = String(enrollmentType ?? '').trim().toLowerCase();
   if (et && SPECIALIZED_TYPES.has(et)) return true;
@@ -285,7 +295,7 @@ export async function syncStudentAccessAndAllocation(
       section: cls.name,
       current_class: cls.name,
       is_active: true,
-      status: 'active',
+      status: STUDENT_STATUS.APPROVED,
       updated_at: nowIso,
     })
     .in('user_id', validIds);
