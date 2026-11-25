@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         (receipt as any).student_id || (receipt as any).portal_user_id || null;
       const isSchool = receipt.stream === 'school' || (Boolean(receipt.school_id) && !linkedUserId);
       let toEmail: string | null = overrideEmail;
-      let payerLabel: string = isSchool
+      const payerLabel: string = isSchool
         ? ((receipt.schools as any)?.name || (receipt.metadata as any)?.payer_name || 'Partner School')
         : ((receipt.metadata as any)?.payer_name || (receipt.portal_users as any)?.full_name || 'Valued Client');
 
