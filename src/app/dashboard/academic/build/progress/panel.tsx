@@ -434,52 +434,45 @@ export default function CurriculumProgressPage({
     );
 
   return (
-    <div className="min-h-screen bg-background text-foreground mobile-page-root">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* ── Unified nav bar ── */}
-        <div
-          className={`${
-            embedded ? "hidden" : "flex"
-          } items-center gap-1 bg-card border border-border rounded-xl p-1 flex-wrap`}
-        >
-          <Link
-            href="/dashboard/academic/build"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap"
-          >
-            <BookOpenIcon className="w-3.5 h-3.5 shrink-0" /> Course Syllabus
-          </Link>
-          <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-black whitespace-nowrap">
-            <PresentationChartLineIcon className="w-3.5 h-3.5 shrink-0" />{" "}
-            Teaching Coverage
-          </span>
-          {canToggle && (
-            <Link
-              href="/dashboard/learner-progress?view=decisions"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap"
-            >
-              <AcademicCapIcon className="w-3.5 h-3.5 shrink-0" /> Promotion
-              Decisions
-            </Link>
-          )}
-          <Link
-            href="/dashboard/academic/build"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap"
-          >
-            <BookOpenIcon className="w-3.5 h-3.5 shrink-0" /> Open Curriculum
-          </Link>
-        </div>
-
-        {/* Page title */}
-        <div className={embedded ? "hidden" : ""}>
-          <h1 className="text-xl sm:text-2xl font-black">
-            Curriculum Teaching Coverage
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {isSchool
-              ? "Your school's curriculum delivery status"
-              : "Live delivery tracking across all partner schools"}
-          </p>
-        </div>
+    <div className="bg-background text-foreground mobile-page-root">
+      <div className={`max-w-6xl mx-auto ${embedded ? "space-y-5" : "px-4 sm:px-6 py-5 space-y-5"}`}>
+        {/* Single compact header + navigation (hidden when embedded inside another workspace) */}
+        {!embedded && (
+          <header className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-foreground">
+                Curriculum Teaching Coverage
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                {isSchool
+                  ? "Your school's curriculum delivery status"
+                  : "Live week-by-week delivery tracking across partner schools"}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Link
+                href="/dashboard/classes"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-background hover:bg-muted text-xs font-bold text-foreground transition-colors"
+              >
+                <AcademicCapIcon className="w-3.5 h-3.5 text-primary" /> My Classes
+              </Link>
+              <Link
+                href="/dashboard/academic/build"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-background hover:bg-muted text-xs font-bold text-foreground transition-colors"
+              >
+                <BookOpenIcon className="w-3.5 h-3.5 text-primary" /> Official Curriculum
+              </Link>
+              {canToggle && (
+                <Link
+                  href="/dashboard/learner-progress?view=decisions"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black transition-opacity hover:opacity-90"
+                >
+                  <PresentationChartLineIcon className="w-3.5 h-3.5" /> Promotion Decisions
+                </Link>
+              )}
+            </div>
+          </header>
+        )}
 
         {/* School visibility info banner for school role */}
         {isSchool && (

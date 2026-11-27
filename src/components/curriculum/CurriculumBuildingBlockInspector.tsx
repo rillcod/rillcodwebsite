@@ -67,123 +67,113 @@ export function CurriculumBuildingBlockInspector({
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
-      <header className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <p className="text-xs font-black uppercase tracking-widest text-primary">Curriculum overview</p>
-        <h1 className="mt-2 text-2xl font-black text-foreground">See the full learning journey</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Choose a programme and course to read every term and week in order. Open the editor only when you need to change the plan.
-        </p>
-      </header>
+    <div className="mx-auto max-w-6xl space-y-4">
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-widest text-primary">Curriculum overview</p>
+            <h1 className="mt-0.5 text-xl font-black text-foreground">Course map &amp; weekly sequence</h1>
+            <p className="mt-1 max-w-2xl text-xs sm:text-sm text-muted-foreground">
+              Choose a programme and course to read every term and week in order.
+            </p>
+          </div>
+          {activeCourse && (
+            <button
+              type="button"
+              onClick={() => onSelectCourse(activeProgram, activeCourse)}
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground"
+            >
+              Open course workspace
+            </button>
+          )}
+        </div>
 
-      <section className="grid gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2">
-        <label className="text-sm font-bold text-foreground">
-          Programme
-          <select
-            value={activeProgram?.id ?? ''}
-            onChange={(event) => chooseProgram(event.target.value)}
-            className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal"
-          >
-            {programs.length === 0 && <option value="">No programmes available</option>}
-            {programs.map((program) => (
-              <option key={program.id} value={program.id}>{program.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-bold text-foreground">
-          Course
-          <select
-            value={activeCourse?.id ?? ''}
-            onChange={(event) => chooseCourse(event.target.value)}
-            disabled={programCourses.length === 0}
-            className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal disabled:opacity-60"
-          >
-            {programCourses.length === 0 && <option value="">No courses in this programme</option>}
-            {programCourses.map((course) => (
-              <option key={course.id} value={course.id}>{course.title}</option>
-            ))}
-          </select>
-        </label>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 pt-2 border-t border-border">
+          <label className="text-xs font-bold text-foreground">
+            Programme
+            <select
+              value={activeProgram?.id ?? ''}
+              onChange={(event) => chooseProgram(event.target.value)}
+              className="mt-1.5 min-h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal"
+            >
+              {programs.length === 0 && <option value="">No programmes available</option>}
+              {programs.map((program) => (
+                <option key={program.id} value={program.id}>{program.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-bold text-foreground">
+            Course
+            <select
+              value={activeCourse?.id ?? ''}
+              onChange={(event) => chooseCourse(event.target.value)}
+              disabled={programCourses.length === 0}
+              className="mt-1.5 min-h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal disabled:opacity-60"
+            >
+              {programCourses.length === 0 && <option value="">No courses in this programme</option>}
+              {programCourses.map((course) => (
+                <option key={course.id} value={course.id}>{course.title}</option>
+              ))}
+            </select>
+          </label>
+          {courseCurricula.length > 1 ? (
+            <label className="text-xs font-bold text-foreground">
+              Curriculum copy
+              <select
+                value={activeCurriculum?.id ?? ''}
+                onChange={(event) => setSelectedCurriculumId(event.target.value)}
+                className="mt-1.5 min-h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal"
+              >
+                {courseCurricula.map((curriculum) => (
+                  <option key={curriculum.id} value={curriculum.id}>
+                    {curriculumCopyLabel(curriculum)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : activeCurriculum ? (
+            <div className="flex flex-wrap items-end gap-2 pb-1 text-xs font-bold">
+              <span className="rounded-full bg-muted px-3 py-1.5 text-foreground">
+                {terms.length} term{terms.length === 1 ? '' : 's'} · {weekCount} week{weekCount === 1 ? '' : 's'}
+              </span>
+              <span className={`rounded-full px-3 py-1.5 ${activeCurriculum.is_visible_to_school ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>
+                {activeCurriculum.is_visible_to_school ? 'Visible to schools' : 'Draft'}
+              </span>
+            </div>
+          ) : null}
+        </div>
       </section>
 
       {activeCourse && !activeCurriculum && (
         <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
           <BookOpenIcon className="mx-auto h-10 w-10 text-muted-foreground/40" />
           <h2 className="mt-3 font-black text-foreground">No curriculum for {activeCourse.title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Open the editor to create its terms and weeks.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Open the workspace to create or view its terms and weeks.</p>
           <button
             type="button"
             onClick={() => onSelectCourse(activeProgram, activeCourse)}
             className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground"
           >
             <SparklesIcon className="h-4 w-4" />
-            Open editor
+            Open course workspace
           </button>
         </section>
       )}
 
       {activeCurriculum && (
         <>
-          <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-widest text-primary">
-                  {activeProgram?.name || 'Programme'}
-                </p>
-                <h2 className="mt-1 text-xl font-black text-foreground">{activeCourse.title}</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {activeCurriculum.content?.overview
-                    || activeCurriculum.content?.description
-                    || activeCurriculum.description
-                    || 'The approved sequence of learning for this course.'}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                  <span className="rounded-full bg-muted px-3 py-1 text-foreground">
-                    {terms.length} term{terms.length === 1 ? '' : 's'}
-                  </span>
-                  <span className="rounded-full bg-muted px-3 py-1 text-foreground">
-                    {weekCount} week{weekCount === 1 ? '' : 's'}
-                  </span>
-                  <span className={`rounded-full px-3 py-1 ${activeCurriculum.is_visible_to_school ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>
-                    {activeCurriculum.is_visible_to_school ? 'Visible to schools' : 'Draft'}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => onSelectCourse(activeProgram, activeCourse)}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground"
-              >
-                Open editor
-              </button>
-            </div>
-
-            {courseCurricula.length > 1 && (
-              <label className="mt-5 block max-w-md text-sm font-bold text-foreground">
-                Curriculum copy
-                <select
-                  value={activeCurriculum.id}
-                  onChange={(event) => setSelectedCurriculumId(event.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal"
-                >
-                  {courseCurricula.map((curriculum) => (
-                    <option key={curriculum.id} value={curriculum.id}>
-                      {curriculumCopyLabel(curriculum)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </section>
-
-          <section className="rounded-2xl border border-sky-500/25 bg-sky-500/5 p-5">
-            <h2 className="font-black text-foreground">How changes reach classes</h2>
-            <div className="mt-3 grid gap-3 text-sm leading-6 text-muted-foreground sm:grid-cols-3">
+          <details className="group rounded-2xl border border-sky-500/25 bg-sky-500/5 px-4 py-3">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-black text-foreground [&::-webkit-details-marker]:hidden">
+              <span>How changes reach classes</span>
+              <span className="text-primary group-open:hidden">Show policy</span>
+              <span className="hidden text-primary group-open:inline">Hide</span>
+            </summary>
+            <div className="mt-3 grid gap-3 text-xs sm:text-sm leading-6 text-muted-foreground sm:grid-cols-3 border-t border-sky-500/15 pt-3">
               <p><strong className="text-foreground">1. Save:</strong> changes stay in this draft.</p>
               <p><strong className="text-foreground">2. Publish:</strong> a new approved version becomes available to future class plans.</p>
               <p><strong className="text-foreground">3. Protect teaching:</strong> classes already in progress keep their current version, so lessons, submissions and scores do not change midway.</p>
             </div>
-          </section>
+          </details>
 
           <section className="space-y-3" aria-label="Terms and weeks">
             {terms.length === 0 ? (

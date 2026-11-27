@@ -798,13 +798,10 @@ export default function CurriculumPage() {
   const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
-  // Teachers and partner schools may read official weeks. They must not land
-  // in the authoring builder — that is Academic Office work.
+  // Teachers and partner schools read the official weekly curriculum in the same
+  // structured Term → Week → Lesson Guide workspace (with authoring actions gated to Admin).
   const isCurriculumReader = isTeacher || isSchool;
-  const viewMode: "roster" | "inspector" | "builder" =
-    isCurriculumReader && curriculumViewMode === "builder"
-      ? "roster"
-      : curriculumViewMode;
+  const viewMode: "roster" | "inspector" | "builder" = curriculumViewMode;
 
   useEffect(() => {
     if (!selectedCourse || learnerMode || isSchool) return;
@@ -3915,7 +3912,7 @@ export default function CurriculumPage() {
   return (
     <>
       {/* Official print documents — hidden in UI, revealed only by window.print() */}
-      <div style={{ display: printMode === "week" ? "block" : "none" }}>
+      <div className="hidden print:block" style={{ display: printMode === "week" ? undefined : "none" }}>
         <CurriculumPrintDoc
           curriculum={curriculum as any}
           activeWeek={activeWeek}
@@ -3925,7 +3922,7 @@ export default function CurriculumPage() {
           teacherName={profile?.full_name ?? undefined}
         />
       </div>
-      <div style={{ display: printMode === "overview" ? "block" : "none" }}>
+      <div className="hidden print:block" style={{ display: printMode === "overview" ? undefined : "none" }}>
         <CurriculumOverviewPrintDoc
           curriculum={curriculum as any}
           programName={selectedProgram?.name}
@@ -4057,93 +4054,83 @@ export default function CurriculumPage() {
           is the only scrollport (PWA + browser). Nested overflow-y-auto + min-h-screen
           traps touch scroll and hides the page under sticky chrome. */}
       <div className="flex flex-col bg-background text-foreground print:hidden mobile-page-root md:min-h-0">
-        {/* Header — wraps gracefully on mobile */}
+        {/* Single compact workspace bar — works cleanly for both Teachers (Weekly Guide) and Admins (Builder) */}
         <div className="shrink-0 border-b border-border bg-card z-20">
-          <div className="px-4 py-2 md:py-0 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
-            <p className="text-sm font-black text-foreground">
-              {isCurriculumReader ? "Official curriculum" : "Curriculum builder"}
-            </p>
-            <p className="hidden text-xs text-muted-foreground md:block">
-              {isCurriculumReader
-                ? "These are the weeks classes teach. Open a class to deliver them."
-                : "Write the week plan here. Publish on Rollout. Teach from Classes."}
-            </p>
-            <div className="flex-1 hidden md:block" />
+          <div className="px-4 py-2 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-2 md:gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <p className="text-sm font-black text-foreground shrink-0">
+                {isCurriculumReader ? "Official curriculum" : "Curriculum builder"}
+              </p>
+              <span className="hidden lg:inline text-muted-foreground/40">·</span>
+              <p className="hidden text-xs text-muted-foreground lg:block truncate">
+                {isCurriculumReader
+                  ? "Browse weekly topics and lesson guides, then deliver from My Classes."
+                  : "Write the week plan here. Publish on Rollout. Teach from Classes."}
+              </p>
+            </div>
 
-            {isCurriculumReader && (
-              <Link
-                href="/dashboard/classes"
-                className="rounded-xl bg-primary px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-primary-foreground"
-              >
-                Open My Classes
-              </Link>
-            )}
-
-            {isAdmin && (
-              <div className="flex max-w-full items-center gap-1 rounded-xl border border-border bg-background p-1 my-1 md:my-0">
-                <button
-                  type="button"
-                  onClick={() => setCurriculumViewMode("builder")}
-                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 ${
-                    curriculumViewMode === "builder"
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  Build
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurriculumViewMode("roster")}
-                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 ${
-                    curriculumViewMode === "roster"
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  Library ({allCurricula.length})
-                </button>
-                <details className="relative">
-                  <summary
-                    className={`cursor-pointer list-none rounded-xl px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors [&::-webkit-details-marker]:hidden ${
-                      curriculumViewMode === "inspector"
-                        ? "bg-primary text-primary-foreground shadow-md"
-                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+            <div className="flex flex-wrap items-center gap-2">
+              {["admin", "teacher", "school"].includes(profile?.role || "") && (
+                <div className="inline-flex max-w-full items-center gap-1 rounded-xl border border-border bg-background p-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurriculumViewMode("builder")}
+                    className={`px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-lg transition-colors ${
+                      viewMode === "builder"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     }`}
                   >
-                    More
-                  </summary>
-                  <div className="absolute right-0 top-full z-40 mt-2 min-w-48 rounded-xl border border-border bg-card p-1.5 shadow-xl">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        setCurriculumViewMode("inspector");
-                        event.currentTarget.closest("details")?.removeAttribute("open");
-                      }}
-                      className="w-full rounded-lg px-3 py-2 text-left text-xs font-bold text-foreground hover:bg-muted"
-                    >
-                      Course map
-                      <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
-                        See programmes, courses and curriculum coverage.
-                      </span>
-                    </button>
-                  </div>
-                </details>
-              </div>
-            )}
+                    {isAdmin ? "Build" : "Weekly guide"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurriculumViewMode("inspector")}
+                    className={`px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-lg transition-colors ${
+                      viewMode === "inspector"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    Course map
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurriculumViewMode("roster")}
+                    className={`px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-lg transition-colors ${
+                      viewMode === "roster"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    {isAdmin ? <>Library ({allCurricula.length})</> : <>All ({allCurricula.length})</>}
+                  </button>
+                </div>
+              )}
 
-            <button
-              type="button"
-              onClick={() => setShowHelp((h) => !h)}
-              title={showHelp ? "Hide guide" : "How it works"}
-              className={`ml-auto md:ml-0 p-2 rounded-lg transition-colors shrink-0 ${
-                showHelp
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              }`}
-            >
-              <InformationCircleIcon className="w-4 h-4" />
-            </button>
+              {isCurriculumReader && (
+                <Link
+                  href="/dashboard/classes"
+                  className="rounded-xl bg-primary px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-primary-foreground hover:opacity-90"
+                >
+                  Open My Classes
+                </Link>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowHelp((h) => !h)}
+                title={showHelp ? "Hide guide" : "How it works"}
+                aria-label="Toggle curriculum workflow guide"
+                className={`p-2 rounded-lg transition-colors shrink-0 ${
+                  showHelp
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                }`}
+              >
+                <InformationCircleIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -4897,23 +4884,8 @@ export default function CurriculumPage() {
                     )}
                   </div>
                 ) : (
-                  /* Curriculum content */
-                  <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-5xl mx-auto w-full">
-                    <OfficialDirectionStatus
-                      loading={officialStatus.loading}
-                      release={officialStatus.release}
-                      adoption={officialStatus.adoption}
-                      isSchoolScoped={officialStatus.isSchoolScoped}
-                      publishHref={
-                        canPublish && curriculum && !curriculum.school_id
-                          ? buildCertifyHref({
-                              curriculumId: curriculum.id,
-                              courseId: curriculum.course_id,
-                            })
-                          : undefined
-                      }
-                    />
-
+                  /* Curriculum content — clean, single-header structure for Teachers and Admins */
+                  <div className="px-3 sm:px-6 py-4 sm:py-5 space-y-4 max-w-5xl mx-auto w-full">
                     {deleteError && (
                       <div
                         role="alert"
@@ -4998,771 +4970,602 @@ export default function CurriculumPage() {
                       </div>
                     )}
 
-                    {/* ── Classes using this curriculum ──
-                       These are exactly what blocks deletion, and the page
-                       never showed them, so a refusal named a class the user
-                       had no way to find. */}
-                    {implementationList.length > 0 && (
-                      <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                          Used by {implementationList.length} class
-                          {implementationList.length === 1 ? "" : "es"}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          This curriculum cannot be deleted while any of these
-                          class plans still use it.
-                        </p>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          {implementationList.map((impl: any) => {
-                            const klass = Array.isArray(impl.classes)
-                              ? impl.classes[0]
-                              : impl.classes;
-                            return (
-                              <div
-                                key={impl.id}
-                                className="flex items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm"
-                              >
-                                <span className="min-w-0">
-                                  <span className="block truncate font-bold text-foreground">
-                                    {klass?.name ?? "Unassigned class"}
-                                  </span>
-                                  <span className="block text-[11px] text-muted-foreground">
-                                    {impl.term || "No term"} ·{" "}
-                                    {impl.status || "draft"}
-                                  </span>
-                                </span>
-                                <div className="flex shrink-0 items-center gap-2">
-                                  {klass?.id && (
-                                    <Link
-                                      href={buildClassTeachingHref({
-                                        classId: klass.id,
-                                        courseId: curriculum?.course_id,
-                                      })}
-                                      className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/70"
-                                    >
-                                      Teach
-                                    </Link>
-                                  )}
-                                  {/* Removing a class plan is a delivery
-                                     action, not a curriculum edit: the API
-                                     allows a teacher who owns the class. */}
-                                  {canTrack && (
-                                    <button
-                                      type="button"
-                                      disabled={deletingImpl === impl.id}
-                                      onClick={(e) =>
-                                        void deleteImplementation(impl.id, e)
-                                      }
-                                      className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 disabled:opacity-50"
-                                    >
-                                      {deletingImpl === impl.id
-                                        ? "Removing…"
-                                        : "Remove"}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="pb-4 sm:pb-5 border-b border-border space-y-3 sm:space-y-4 relative">
-                      <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-
-                      {/* Row 1: unified Year → Curriculum → Term control bar */}
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 relative z-10">
-                        {/* Academic Year — display only; change from Settings */}
-                        <div
-                          className={`${
-                            showAdvancedCurriculumControls
-                              ? "inline-flex"
-                              : "hidden"
-                          } items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden`}
-                        >
-                          <div className="flex items-center gap-1.5 px-2 border-r border-border h-full">
-                            <CalendarDaysIcon className="w-3 h-3 text-muted-foreground shrink-0" />
-                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                              Year
-                            </span>
-                          </div>
-                          <Link
-                            href="/dashboard/learner-progress?view=rules&tab=academic-rules&sub=platform"
-                            className="px-2 text-[9px] font-black text-primary hover:text-primary/70 transition-colors"
-                            title="Academic year — click to change in Settings"
-                          >
-                            {academicYear}
-                          </Link>
-                        </div>
-
-                        <ChevronRightIcon
-                          className={`${
-                            showAdvancedCurriculumControls ? "block" : "hidden"
-                          } w-3 h-3 text-muted-foreground/40 shrink-0`}
-                        />
-
-                        {/* Curriculum */}
-                        <div className="inline-flex items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
-                          <div
-                            className={`flex items-center gap-1.5 px-2 border-r border-border h-full ${
-                              curriculum.school_id
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : "text-primary"
-                            }`}
-                          >
-                            {curriculum.school_id ? (
-                              <BuildingOfficeIcon className="w-3 h-3 shrink-0" />
-                            ) : (
-                              <ShieldCheckIcon className="w-3 h-3 shrink-0" />
+                    {/* ── 1. Unified Course Identity & Actions Card (replaces 5 stacked header blocks) ── */}
+                    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                        <div className="min-w-0 space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {selectedProgram?.name && (
+                              <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                {selectedProgram.name}
+                              </span>
                             )}
-                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                              Curriculum
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 border border-primary/20 text-primary">
+                              v{curriculum.version}
                             </span>
-                          </div>
-                          {curriculumList.length > 1 ? (
-                            <select
-                              value={curriculum.id}
-                              onChange={(e) =>
-                                selectCurriculumVersion(e.target.value)
-                              }
-                              className="bg-transparent border-none text-[9px] font-black tracking-widest text-primary focus:ring-0 px-2 h-full cursor-pointer max-w-[150px] sm:max-w-[200px] truncate py-0"
-                            >
-                              {curriculumList.filter((c) => !c.school_id)
-                                .length > 0 && (
-                                <optgroup label="── Platform template">
-                                  {curriculumList
-                                    .filter((c) => !c.school_id)
-                                    .map((c) => {
-                                      const desc = c.content?.description
-                                        ? ` (${c.content.description})`
-                                        : "";
-                                      return (
-                                        <option
-                                          key={c.id}
-                                          value={c.id}
-                                          className="bg-[#0a0a0a] text-foreground"
-                                        >
-                                          Platform v{c.version}
-                                          {desc}
-                                        </option>
-                                      );
-                                    })}
-                                </optgroup>
-                              )}
-                              {curriculumList.filter((c) => !!c.school_id)
-                                .length > 0 && (
-                                <optgroup label="── School versions">
-                                  {curriculumList
-                                    .filter((c) => !!c.school_id)
-                                    .map((c) => {
-                                      const desc = c.content?.description
-                                        ? ` (${c.content.description})`
-                                        : "";
-                                      return (
-                                        <option
-                                          key={c.id}
-                                          value={c.id}
-                                          className="bg-[#0a0a0a] text-foreground"
-                                        >
-                                          {c.schools?.name ?? "School"} v
-                                          {c.version}
-                                          {desc}
-                                        </option>
-                                      );
-                                    })}
-                                </optgroup>
-                              )}
-                            </select>
-                          ) : (
-                            <span className="px-2 text-[9px] font-black text-primary">
-                              {curriculum.school_id
-                                ? curriculum.schools?.name ?? "School"
-                                : "Platform"}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Manage versions — return to history list */}
-                        {curriculumList.length > 1 && (
-                          <button
-                            onClick={() => setCurriculum(null)}
-                            className="inline-flex items-center gap-1 h-7 sm:h-8 px-2 rounded-lg border border-border bg-card/60 backdrop-blur-sm text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
-                            title="See all versions and manage them"
-                          >
-                            <RectangleStackIcon className="w-3 h-3 shrink-0" />
-                            Versions ({curriculumList.length})
-                          </button>
-                        )}
-
-                        {termCount > 0 && (
-                          <>
-                            <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
-
-                            {/* Year tab — only shown for multi-year curricula */}
-                            {yearsAvailable.length > 1 && (
-                              <>
-                                <div className="inline-flex items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
-                                  <div className="flex items-center gap-1.5 px-2 border-r border-border h-full">
-                                    <AcademicCapIcon className="w-3 h-3 text-muted-foreground shrink-0" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                                      Year
-                                    </span>
-                                  </div>
-                                  <select
-                                    value={activeYear}
-                                    onChange={(e) => {
-                                      const yr = Number(e.target.value);
-                                      setActiveYear(yr);
-                                      setActiveWeek(null);
-                                      // Snap term to Programme Term 1 in the new year
-                                      const termsInYear = allTerms
-                                        .filter((t) => (t.year ?? 1) === yr)
-                                        .map((t) => t.term);
-                                      if (termsInYear.length > 0) {
-                                        const progT1 =
-                                          effectiveProgramStartTerm;
-                                        setActiveTerm(
-                                          termsInYear.includes(progT1)
-                                            ? progT1
-                                            : termsInYear[0]
-                                        );
-                                      }
-                                    }}
-                                    className="bg-transparent border-none text-[9px] font-black tracking-widest text-primary focus:ring-0 px-2 h-full cursor-pointer py-0"
+                            {canModifyCurriculum && showAdvancedCurriculumControls && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditVersionNumber(curriculum.version);
+                                  setEditVersionDesc(curriculum.content.description ?? "");
+                                  setShowEditVersionModal(true);
+                                }}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-border hover:border-primary/40 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                title="Edit version details"
+                              >
+                                <PencilIcon className="w-3 h-3" />
+                              </button>
+                            )}
+                            {/* Edition / Scope Switcher */}
+                            {curriculumList.length > 1 ? (
+                              <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-0.5">
+                                {curriculum.school_id ? (
+                                  <BuildingOfficeIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                ) : (
+                                  <ShieldCheckIcon className="w-3 h-3 text-primary shrink-0" />
+                                )}
+                                <select
+                                  value={curriculum.id}
+                                  onChange={(e) => selectCurriculumVersion(e.target.value)}
+                                  aria-label="Select curriculum copy"
+                                  className="bg-transparent border-none text-[11px] font-bold text-foreground focus:outline-none cursor-pointer max-w-[180px] truncate py-0.5"
+                                >
+                                  {curriculumList.filter((c) => !c.school_id).length > 0 && (
+                                    <optgroup label="Platform template">
+                                      {curriculumList
+                                        .filter((c) => !c.school_id)
+                                        .map((c) => (
+                                          <option key={c.id} value={c.id}>
+                                            Platform v{c.version}
+                                            {c.content?.description ? ` (${c.content.description})` : ""}
+                                          </option>
+                                        ))}
+                                    </optgroup>
+                                  )}
+                                  {curriculumList.filter((c) => !!c.school_id).length > 0 && (
+                                    <optgroup label="School versions">
+                                      {curriculumList
+                                        .filter((c) => !!c.school_id)
+                                        .map((c) => (
+                                          <option key={c.id} value={c.id}>
+                                            {c.schools?.name ?? "School"} v{c.version}
+                                            {c.content?.description ? ` (${c.content.description})` : ""}
+                                          </option>
+                                        ))}
+                                    </optgroup>
+                                  )}
+                                </select>
+                                {isAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setCurriculum(null)}
+                                    className="ml-1 pl-1.5 border-l border-border text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-primary"
+                                    title="Manage all versions"
                                   >
-                                    {yearsAvailable.map((yr) => (
-                                      <option
-                                        key={yr}
-                                        value={yr}
-                                        className="bg-[#0a0a0a] text-foreground"
-                                      >
-                                        Year {yr}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  {canModifyCurriculum &&
-                                    showAdvancedCurriculumControls && (
-                                      <button
-                                        type="button"
-                                        onClick={handleDeleteActiveYear}
-                                        disabled={deleting}
-                                        className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                                        title={`Delete Year ${activeYear} and all its terms`}
-                                      >
-                                        <TrashIcon className="w-3 h-3" />
-                                      </button>
-                                    )}
-                                </div>
-                                <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                                    All ({curriculumList.length})
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                {curriculum.school_id ? curriculum.schools?.name ?? "School copy" : "Official template"}
+                              </span>
+                            )}
+                          </div>
+
+                          <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tight text-foreground">
+                            {curriculum.content.course_title || selectedCourse.title}
+                          </h1>
+
+                          {curriculum.content.description && (
+                            <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+                              {curriculum.content.description}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground pt-0.5">
+                            <span>
+                              {yearsAvailable.length > 1 ? `${yearsAvailable.length} Years · ` : ""}
+                              {termCount} {unitNoun}{termCount === 1 ? "" : "s"} · {allWeeks.length} Weeks
+                            </span>
+                            {allWeeks.length > 0 && completedCount > 0 && (
+                              <>
+                                <span className="text-muted-foreground/40">·</span>
+                                <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+                                  {completedCount}/{allWeeks.length} taught ({progressPct}%)
+                                </span>
                               </>
                             )}
-
-                            {/* Term — filtered to active year */}
-                            <div className="inline-flex items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
-                              <div className="flex items-center gap-1.5 px-2 border-r border-border h-full">
-                                <BookOpenIcon className="w-3 h-3 text-muted-foreground shrink-0" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                                  {unitNoun}
-                                </span>
-                              </div>
-                              {/* Terms as visible tabs, not a dropdown. As a <select> the
-                                  other terms were invisible until opened, so the view read
-                                  as "this term only" and Week 1 looked unreachable. */}
-                              <div className="flex items-stretch h-full overflow-x-auto no-scrollbar">
-                                {termsForActiveYear.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveTerm(0);
-                                      setActiveWeek(null);
-                                    }}
-                                    title="Show every week of the year in one list"
-                                    className={`flex items-center gap-1 px-2.5 h-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap border-r border-border transition-colors cursor-pointer ${
-                                      activeTerm === 0
-                                        ? "bg-primary/15 text-primary"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                    }`}
-                                  >
-                                    ✨ All
-                                  </button>
-                                )}
-                                {orderedTerms.map((term) => {
-                                  const termWeeks = term.weeks?.length ?? 0;
-                                  const termDone = tracking.filter(
-                                    (t) =>
-                                      t.term_number === term.term &&
-                                      t.status === "completed"
-                                  ).length;
-                                  const isNow =
-                                    !isCohortFormat &&
-                                    term.term === getCurrentTerm();
-                                  const progTermNum = getProgrammeTerm(
-                                    term.term,
-                                    effectiveProgramStartTerm
-                                  );
-                                  const PROG_THEME: Record<number, string> = {
-                                    1: "Foundations",
-                                    2: "Application",
-                                    3: "Innovation",
-                                  };
-                                  const nationalLabel = unitLabel(term);
-                                  // Programme-term theming only applies to the school calendar; cohort
-                                  // formats (online/bootcamp/self-paced) just show Module/Week labels.
-                                  const fullLabel =
-                                    !isCohortFormat &&
-                                    effectiveProgramStartTerm !== 1
-                                      ? `T${progTermNum} ${
-                                          PROG_THEME[progTermNum] ?? ""
-                                        } (${nationalLabel})`
-                                      : nationalLabel;
-                                  // Tabs get descriptive labels with week range for quick scanning.
-                                  const weekMin = term.weeks?.[0]?.week;
-                                  const weekMax = term.weeks?.[term.weeks.length - 1]?.week;
-                                  const weekRangeLabel = weekMin && weekMax ? ` (W${weekMin}–${weekMax})` : "";
-                                  // "Term 1 · W1–8", not "T1 (W1–8)". The tab is the
-                                  // main way anyone moves through a curriculum, and
-                                  // a single letter and a number is a code to be
-                                  // decoded rather than a label to be read.
-                                  const tabLabel = isCohortFormat
-                                    ? nationalLabel
-                                    : `${unitNoun} ${progTermNum}${weekRangeLabel.replace(/^ \((W[^)]*)\)$/, ' · $1')}`;
-                                  const isSelected = activeTerm === term.term;
-                                  return (
-                                    <button
-                                      key={term.term}
-                                      type="button"
-                                      onClick={() => {
-                                        setActiveTerm(term.term);
-                                        setActiveWeek(null);
-                                      }}
-                                      title={`${fullLabel}${
-                                        termWeeks > 0
-                                          ? ` — ${termDone} of ${termWeeks} weeks taught`
-                                          : ""
-                                      }`}
-                                      // 9px uppercase at the widest tracking, then
-                                      // truncated at 9rem — the label was small,
-                                      // stretched and cut off at once. Sentence case
-                                      // at 11px fits more of the actual words in the
-                                      // same room.
-                                      className={`flex items-center gap-1.5 px-3 h-full text-[11px] font-bold whitespace-nowrap border-r border-border last:border-r-0 transition-colors cursor-pointer ${
-                                        isSelected
-                                          ? "bg-primary/15 text-primary"
-                                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                      }`}
-                                    >
-                                      {isNow && (
-                                        <span
-                                          className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
-                                          aria-label="Current term"
-                                        />
-                                      )}
-                                      <span className="max-w-[12rem] truncate">
-                                        {tabLabel}
-                                      </span>
-                                      {termWeeks > 0 && (
-                                        <span
-                                          className={
-                                            isSelected
-                                              ? "text-primary/70"
-                                              : "text-muted-foreground/60"
-                                          }
-                                        >
-                                          {termDone}/{termWeeks}
-                                        </span>
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {canModifyCurriculum &&
-                                showAdvancedCurriculumControls &&
-                                allTerms.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={handleDeleteActiveTerm}
-                                    disabled={deleting}
-                                    className="flex items-center justify-center w-7 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                                    title={`Delete Term ${activeTerm} of Year ${activeYear}`}
-                                  >
-                                    <TrashIcon className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Row 2: title + version + meta */}
-                      <div className="space-y-2 relative z-10">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <h1 className="text-lg sm:text-2xl font-black leading-tight tracking-tighter text-foreground inline-flex items-center gap-2 flex-wrap">
-                            <span>{curriculum.content.course_title}</span>
-                            <span className="inline-flex items-center gap-1.5 shrink-0 select-none">
-                              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-primary/10 border border-primary/20 text-primary h-6">
-                                v{curriculum.version}
-                              </span>
-                              {canModifyCurriculum &&
-                                showAdvancedCurriculumControls && (
-                                  <button
-                                    onClick={() => {
-                                      setEditVersionNumber(curriculum.version);
-                                      setEditVersionDesc(
-                                        curriculum.content.description ?? ""
-                                      );
-                                      setShowEditVersionModal(true);
-                                    }}
-                                    className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-border hover:border-primary/40 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
-                                    title="Edit version details"
-                                  >
-                                    <PencilIcon className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                            </span>
-                          </h1>
-                          {curriculum.content.description && (
-                            <span
-                              className="text-[10px] sm:text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-0.5 border border-border rounded-lg max-w-[200px] sm:max-w-none truncate h-6 inline-flex items-center select-none"
-                              title={curriculum.content.description}
-                            >
-                              {curriculum.content.description}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground font-medium">
-                          {yearsAvailable.length > 1 ? (
-                            <span className="flex items-center gap-1">
-                              <AcademicCapIcon className="w-3 h-3" />{" "}
-                              {yearsAvailable.length} Years · {termCount}{" "}
-                              {unitNoun}
-                              {termCount === 1 ? "" : "s"}
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <BookOpenIcon className="w-3 h-3" /> {termCount}{" "}
-                              {unitNoun}
-                              {termCount === 1 ? "" : "s"}
-                            </span>
-                          )}
-                          <span className="w-1 h-1 rounded-full bg-white/20" />
-                          <span className="flex items-center gap-1">
-                            <CalendarDaysIcon className="w-3 h-3" />{" "}
-                            {new Date(
-                              curriculum.created_at
-                            ).toLocaleDateString()}
-                          </span>
-                          {allWeeks.length > 0 && completedCount > 0 && (
-                            <>
-                              <span className="w-1 h-1 rounded-full bg-white/20" />
-                              <span className="text-emerald-600 dark:text-emerald-400 font-black">
-                                {completedCount}/{allWeeks.length} taught
-                              </span>
-                            </>
-                          )}
-                          {/* Programme start term — editable by staff */}
-                          {canModifyCurriculum &&
-                            showAdvancedCurriculumControls && (
+                            {canModifyCurriculum && showAdvancedCurriculumControls && (
                               <>
-                                {/* Today indicator — shows current programme term and lets teacher jump to it */}
-                                {(() => {
-                                  const todayNational = getCurrentTerm();
-                                  const todayProg = getProgrammeTerm(
-                                    todayNational,
-                                    effectiveProgramStartTerm
-                                  );
-                                  const PROG_PHASE: Record<number, string> = {
-                                    1: "Foundations",
-                                    2: "Application",
-                                    3: "Innovation",
-                                  };
-                                  const isViewingToday =
-                                    activeTerm === todayNational;
-                                  const todayInCurriculum =
-                                    termsForActiveYear.some(
-                                      (t) => t.term === todayNational
-                                    );
-                                  if (!todayInCurriculum) return null;
-                                  return (
-                                    <>
-                                      <span className="w-1 h-1 rounded-full bg-white/20" />
-                                      {isViewingToday ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-                                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                                          Now · Prog.T{todayProg}{" "}
-                                          {PROG_PHASE[todayProg]}
-                                        </span>
-                                      ) : (
-                                        <button
-                                          onClick={() => {
-                                            setActiveTerm(todayNational);
-                                            setActiveWeek(null);
-                                          }}
-                                          title={`Jump to today's term — Prog.T${todayProg} ${PROG_PHASE[todayProg]}`}
-                                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-                                        >
-                                          <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
-                                          Today: Prog.T{todayProg}{" "}
-                                          {PROG_PHASE[todayProg]}
-                                          <ChevronRightIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity" />
-                                        </button>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                                <span className="w-1 h-1 rounded-full bg-white/20" />
+                                <span className="text-muted-foreground/40">·</span>
+                                <Link
+                                  href="/dashboard/learner-progress?view=rules&tab=academic-rules&sub=platform"
+                                  className="font-bold text-primary hover:underline"
+                                  title="Academic year — click to change in Settings"
+                                >
+                                  Session {academicYear}
+                                </Link>
                                 {editingProgramStartTerm ? (
-                                  <span className="flex items-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1.5">
                                     <select
                                       value={programStartTermDraft}
-                                      onChange={(e) =>
-                                        setProgramStartTermDraft(
-                                          Number(e.target.value)
-                                        )
-                                      }
-                                      className="text-[10px] font-black bg-muted border border-border rounded px-2 py-0.5 text-foreground focus:outline-none focus:border-amber-500/50"
-                                      autoFocus
+                                      onChange={(e) => setProgramStartTermDraft(Number(e.target.value))}
+                                      className="text-[11px] font-bold bg-background border border-border rounded px-2 py-0.5 text-foreground"
                                     >
-                                      <option value={1}>
-                                        Starts Term 1 — Sept
-                                      </option>
-                                      <option value={2}>
-                                        Starts Term 2 — Jan
-                                      </option>
-                                      <option value={3}>
-                                        Starts Term 3 — May
-                                      </option>
+                                      <option value={1}>Starts Term 1 (Sept)</option>
+                                      <option value={2}>Starts Term 2 (Jan)</option>
+                                      <option value={3}>Starts Term 3 (May)</option>
                                     </select>
                                     <button
-                                      onClick={() =>
-                                        void saveProgramStartTerm(
-                                          programStartTermDraft
-                                        )
-                                      }
+                                      type="button"
+                                      onClick={() => void saveProgramStartTerm(programStartTermDraft)}
                                       disabled={savingProgramStartTerm}
-                                      className="px-2 py-0.5 text-[9px] font-black bg-primary text-primary-foreground rounded-full disabled:opacity-40 transition-colors"
+                                      className="px-2 py-0.5 text-[10px] font-black bg-primary text-primary-foreground rounded"
                                     >
                                       {savingProgramStartTerm ? "…" : "Save"}
                                     </button>
                                     <button
-                                      onClick={() =>
-                                        setEditingProgramStartTerm(false)
-                                      }
-                                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                      type="button"
+                                      onClick={() => setEditingProgramStartTerm(false)}
+                                      className="text-xs text-muted-foreground hover:text-foreground"
                                     >
                                       ✕
                                     </button>
                                   </span>
                                 ) : (
                                   <button
+                                    type="button"
                                     onClick={() => {
-                                      setProgramStartTermDraft(
-                                        effectiveProgramStartTerm
-                                      );
+                                      setProgramStartTermDraft(effectiveProgramStartTerm);
                                       setEditingProgramStartTerm(true);
                                     }}
-                                    title="Tap to change which national term is Programme Term 1 for this school"
-                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group ${
-                                      effectiveProgramStartTerm !== 1
-                                        ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
-                                        : "bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-                                    }`}
+                                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-bold text-foreground hover:bg-muted"
+                                    title="Change which national term is Programme Term 1"
                                   >
-                                    <span
-                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                        effectiveProgramStartTerm !== 1
-                                          ? "bg-amber-400"
-                                          : "bg-muted-foreground/40"
-                                      }`}
-                                    />
-                                    Prog. T{effectiveProgramStartTerm} starts
-                                    <PencilIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity" />
+                                    Starts T{effectiveProgramStartTerm}
+                                    <PencilIcon className="w-2.5 h-2.5 opacity-70" />
                                   </button>
                                 )}
                               </>
                             )}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Row 3: action buttons — primary CTA visible, secondary in overflow */}
-                      <div className="flex flex-wrap gap-1.5 sm:gap-2 relative z-10">
-                        {canGenerate && (
-                          <button
-                            onClick={openGenerateModal}
-                            className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3.5 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20 shrink-0 cursor-pointer"
-                          >
-                            <SparklesIcon className="w-3.5 h-3.5" /> Generate
-                          </button>
-                        )}
-                        {canPublish && !curriculum.school_id && (
-                          <Link
-                            href={buildCertifyHref({
-                              curriculumId: curriculum.id,
-                              courseId: curriculum.course_id,
-                            })}
-                            className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-800 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
-                          >
-                            <RocketLaunchIcon className="h-3.5 w-3.5" />
-                            {officialStatus.release ? "Manage rollout" : "Publish"}
-                          </Link>
-                        )}
-                        {/* More overflow menu */}
-                        <div className="relative">
+                        {/* Right: Clean, role-focused action bar */}
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          {isCurriculumReader && (
+                            <Link
+                              href={
+                                implementationList.length === 1
+                                  ? (() => {
+                                      const k = Array.isArray(implementationList[0].classes)
+                                        ? implementationList[0].classes[0]
+                                        : implementationList[0].classes;
+                                      return k?.id
+                                        ? buildClassTeachingHref({ classId: k.id, courseId: curriculum.course_id })
+                                        : "/dashboard/classes";
+                                    })()
+                                  : "/dashboard/classes"
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground hover:opacity-90 shadow-sm"
+                            >
+                              <AcademicCapIcon className="w-3.5 h-3.5" />
+                              Teach in Class
+                            </Link>
+                          )}
+
+                          {canGenerate && (
+                            <button
+                              type="button"
+                              onClick={openGenerateModal}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground hover:opacity-90 shadow-sm"
+                            >
+                              <SparklesIcon className="w-3.5 h-3.5" /> Generate
+                            </button>
+                          )}
+
+                          {canPublish && !curriculum.school_id && (
+                            <Link
+                              href={buildCertifyHref({
+                                curriculumId: curriculum.id,
+                                courseId: curriculum.course_id,
+                              })}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-black uppercase tracking-wider text-white transition-colors shadow-sm"
+                            >
+                              <RocketLaunchIcon className="h-3.5 w-3.5" />
+                              {officialStatus.release ? "Rollout" : "Publish"}
+                            </Link>
+                          )}
+
                           <button
                             type="button"
-                            onClick={() => setShowBuilderMenu(v => !v)}
-                            className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:px-3 sm:py-1.5 sm:text-[10px]"
+                            onClick={() => openPrintOptions()}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background hover:bg-muted px-3 py-2 text-xs font-bold text-foreground transition-colors"
+                            title="Print or export curriculum PDF"
                           >
-                            More
-                            <ChevronDownIcon className={`w-3 h-3 transition-transform ${showBuilderMenu ? 'rotate-180' : ''}`} />
+                            <PrinterIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                            Print / PDF
                           </button>
-                          {showBuilderMenu && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setShowBuilderMenu(false)} />
-                              <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-card border border-border rounded-xl shadow-2xl p-1.5 space-y-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => { setShowBuilderMenu(false); openPrintOptions(); }}
-                                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
-                                >
-                                  <PrinterIcon className="w-4 h-4 text-muted-foreground" />
-                                  Print / Export
-                                </button>
-                                {canModifyCurriculum && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setShowBuilderMenu(false); setShowAdvancedCurriculumControls(v => !v); }}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
-                                  >
-                                    <BoltIcon className="w-4 h-4 text-muted-foreground" />
-                                    {showAdvancedCurriculumControls ? 'Hide advanced tools' : 'Advanced tools'}
-                                  </button>
-                                )}
-                                {canModifyCurriculum && showAdvancedCurriculumControls && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setShowBuilderMenu(false);
-                                      setNotifSettingsDraft(
-                                        curriculum.content.notification_settings ?? {
-                                          mode: "all",
-                                          channels: ["whatsapp"],
-                                        }
-                                      );
-                                      setShowNotifSettings(true);
-                                    }}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
-                                  >
-                                    <BellIcon className="w-4 h-4 text-muted-foreground" />
-                                    Notifications
-                                  </button>
-                                )}
-                                {canPublish && !!curriculum.school_id && showAdvancedCurriculumControls && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setShowBuilderMenu(false); togglePublish(!curriculum.is_visible_to_school); }}
-                                    disabled={publishing}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors disabled:opacity-50"
-                                  >
-                                    {curriculum.is_visible_to_school
-                                      ? <><PencilIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Make Private</>
-                                      : <><CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Share with School</>
-                                    }
-                                  </button>
-                                )}
-                                <Link
-                                  href="/dashboard/classes"
-                                  onClick={() => setShowBuilderMenu(false)}
-                                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
-                                >
-                                  <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
-                                  Open classes
-                                </Link>
-                                {(isAdmin || (isTeacher && !!curriculum.school_id)) && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setShowBuilderMenu(false); void handleDeleteCurriculum(); }}
-                                    disabled={deleting}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors disabled:opacity-50"
-                                  >
-                                    {deleting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
-                                    Delete
-                                  </button>
-                                )}
-                              </div>
-                            </>
+
+                          {isAdmin && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setShowBuilderMenu((v) => !v)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                              >
+                                More
+                                <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${showBuilderMenu ? "rotate-180" : ""}`} />
+                              </button>
+                              {showBuilderMenu && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setShowBuilderMenu(false)} />
+                                  <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-card border border-border rounded-xl shadow-2xl p-1.5 space-y-0.5">
+                                    {canModifyCurriculum && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setShowBuilderMenu(false);
+                                          setShowAdvancedCurriculumControls((v) => !v);
+                                        }}
+                                        className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                      >
+                                        <BoltIcon className="w-4 h-4 text-muted-foreground" />
+                                        {showAdvancedCurriculumControls ? "Hide advanced tools" : "Advanced tools"}
+                                      </button>
+                                    )}
+                                    {canModifyCurriculum && showAdvancedCurriculumControls && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setShowBuilderMenu(false);
+                                          setNotifSettingsDraft(
+                                            curriculum.content.notification_settings ?? {
+                                              mode: "all",
+                                              channels: ["whatsapp"],
+                                            }
+                                          );
+                                          setShowNotifSettings(true);
+                                        }}
+                                        className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                      >
+                                        <BellIcon className="w-4 h-4 text-muted-foreground" />
+                                        Notifications
+                                      </button>
+                                    )}
+                                    {canPublish && !!curriculum.school_id && showAdvancedCurriculumControls && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setShowBuilderMenu(false);
+                                          togglePublish(!curriculum.is_visible_to_school);
+                                        }}
+                                        disabled={publishing}
+                                        className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors disabled:opacity-50"
+                                      >
+                                        {curriculum.is_visible_to_school ? (
+                                          <>
+                                            <PencilIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Make Private
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Share with School
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+                                    <Link
+                                      href="/dashboard/classes"
+                                      onClick={() => setShowBuilderMenu(false)}
+                                      className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                    >
+                                      <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
+                                      Open classes
+                                    </Link>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setShowBuilderMenu(false);
+                                        void handleDeleteCurriculum();
+                                      }}
+                                      disabled={deleting}
+                                      className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors disabled:opacity-50"
+                                    >
+                                      {deleting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
+                                      Delete copy
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
 
-                      {/* Description — below buttons on all sizes */}
-                      {curriculum.content.description && (
-                        <div className="relative max-w-2xl mt-1">
-                          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary/30 rounded-full" />
-                          <p className="text-xs text-muted-foreground/80 leading-relaxed pl-3 italic font-medium">
-                            &ldquo;{curriculum.content.description}&rdquo;
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                      {/* Quiet 1-line Official Status */}
+                      <OfficialDirectionStatus
+                        loading={officialStatus.loading}
+                        release={officialStatus.release}
+                        adoption={officialStatus.adoption}
+                        isSchoolScoped={officialStatus.isSchoolScoped}
+                        publishHref={
+                          canPublish && curriculum && !curriculum.school_id
+                            ? buildCertifyHref({
+                                curriculumId: curriculum.id,
+                                courseId: curriculum.course_id,
+                              })
+                            : undefined
+                        }
+                      />
 
-                    {/* Term content */}
+                      {/* Classes using this curriculum — direct teacher jump chips vs collapsible admin drawer */}
+                      {implementationList.length > 0 && (
+                        isCurriculumReader ? (
+                          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/60">
+                            <span className="text-[11px] font-bold text-muted-foreground">
+                              Your classes on this course:
+                            </span>
+                            {implementationList.map((impl: any) => {
+                              const klass = Array.isArray(impl.classes) ? impl.classes[0] : impl.classes;
+                              if (!klass?.id) return null;
+                              return (
+                                <Link
+                                  key={impl.id}
+                                  href={buildClassTeachingHref({
+                                    classId: klass.id,
+                                    courseId: curriculum?.course_id,
+                                  })}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition-colors"
+                                >
+                                  {klass.name ?? "Class"} →
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <details className="group rounded-xl border border-border bg-background/60 px-3.5 py-2">
+                            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                              <span>
+                                Used by {implementationList.length} class{implementationList.length === 1 ? "" : "es"}
+                              </span>
+                              <span className="text-primary group-open:hidden">Show classes</span>
+                              <span className="hidden text-primary group-open:inline">Hide</span>
+                            </summary>
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2 border-t border-border pt-3">
+                              {implementationList.map((impl: any) => {
+                                const klass = Array.isArray(impl.classes) ? impl.classes[0] : impl.classes;
+                                return (
+                                  <div
+                                    key={impl.id}
+                                    className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-2.5 text-xs"
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="block truncate font-bold text-foreground">
+                                        {klass?.name ?? "Unassigned class"}
+                                      </span>
+                                      <span className="block text-[11px] text-muted-foreground">
+                                        {impl.term || "No term"} · {impl.status || "draft"}
+                                      </span>
+                                    </span>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                      {klass?.id && (
+                                        <Link
+                                          href={buildClassTeachingHref({
+                                            classId: klass.id,
+                                            courseId: curriculum?.course_id,
+                                          })}
+                                          className="text-[10px] font-black uppercase tracking-wider text-primary hover:underline"
+                                        >
+                                          Teach
+                                        </Link>
+                                      )}
+                                      {canTrack && (
+                                        <button
+                                          type="button"
+                                          disabled={deletingImpl === impl.id}
+                                          onClick={(e) => void deleteImplementation(impl.id, e)}
+                                          className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 hover:underline disabled:opacity-50"
+                                        >
+                                          {deletingImpl === impl.id ? "…" : "Remove"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </details>
+                        )
+                      )}
+                    </section>
+
+                    {/* ── 2. Unified Year & Term Switcher Bar (no duplicate jump pills below) ── */}
+                    {termCount > 0 && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-2">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          {yearsAvailable.length > 1 && (
+                            <div className="inline-flex items-center h-9 rounded-lg border border-border bg-background overflow-hidden">
+                              <span className="px-2.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground border-r border-border">
+                                Year
+                              </span>
+                              <select
+                                value={activeYear}
+                                onChange={(e) => {
+                                  const yr = Number(e.target.value);
+                                  setActiveYear(yr);
+                                  setActiveWeek(null);
+                                  const termsInYear = allTerms
+                                    .filter((t) => (t.year ?? 1) === yr)
+                                    .map((t) => t.term);
+                                  if (termsInYear.length > 0) {
+                                    const progT1 = effectiveProgramStartTerm;
+                                    setActiveTerm(termsInYear.includes(progT1) ? progT1 : termsInYear[0]);
+                                  }
+                                }}
+                                aria-label="Select programme year"
+                                className="bg-transparent border-none text-xs font-black text-foreground focus:outline-none px-2.5 h-full cursor-pointer"
+                              >
+                                {yearsAvailable.map((yr) => (
+                                  <option key={yr} value={yr}>
+                                    Year {yr}
+                                  </option>
+                                ))}
+                              </select>
+                              {canModifyCurriculum && showAdvancedCurriculumControls && (
+                                <button
+                                  type="button"
+                                  onClick={handleDeleteActiveYear}
+                                  disabled={deleting}
+                                  className="flex items-center justify-center w-8 h-full border-l border-border hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 disabled:opacity-50"
+                                  title={`Delete Year ${activeYear} and all its terms`}
+                                >
+                                  <TrashIcon className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar" role="tablist" aria-label="Curriculum terms">
+                            {orderedTerms.map((term) => {
+                              const termWeeks = term.weeks?.length ?? 0;
+                              const termDone = tracking.filter(
+                                (t) => t.term_number === term.term && t.status === "completed"
+                              ).length;
+                              const isNow = !isCohortFormat && term.term === getCurrentTerm();
+                              const progTermNum = getProgrammeTerm(term.term, effectiveProgramStartTerm);
+                              const nationalLabel = unitLabel(term);
+                              const weekMin = term.weeks?.[0]?.week;
+                              const weekMax = term.weeks?.[term.weeks.length - 1]?.week;
+                              const weekRangeLabel = weekMin && weekMax ? ` · W${weekMin}–${weekMax}` : "";
+                              const tabLabel = isCohortFormat
+                                ? nationalLabel
+                                : `${unitNoun} ${progTermNum}${weekRangeLabel}`;
+                              const isSelected = activeTerm === term.term;
+                              return (
+                                <button
+                                  key={term.term}
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={isSelected}
+                                  onClick={() => {
+                                    setActiveTerm(term.term);
+                                    setActiveWeek(null);
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-colors ${
+                                    isSelected
+                                      ? "bg-primary text-primary-foreground shadow-sm"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                  }`}
+                                >
+                                  {isNow && (
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? "bg-primary-foreground" : "bg-emerald-500"}`}
+                                      aria-label="Current term"
+                                    />
+                                  )}
+                                  <span>{tabLabel}</span>
+                                  {termWeeks > 0 && (
+                                    <span className={`text-[10px] ${isSelected ? "opacity-85" : "opacity-60"}`}>
+                                      {termDone}/{termWeeks}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                            {termsForActiveYear.length > 1 && (
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={activeTerm === 0}
+                                onClick={() => {
+                                  setActiveTerm(0);
+                                  setActiveWeek(null);
+                                }}
+                                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-colors ${
+                                  activeTerm === 0
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                }`}
+                              >
+                                All ({orderedWeeks.length}w)
+                              </button>
+                            )}
+                          </div>
+
+                          {canModifyCurriculum && showAdvancedCurriculumControls && allTerms.length > 1 && activeTerm !== 0 && (
+                            <button
+                              type="button"
+                              onClick={handleDeleteActiveTerm}
+                              disabled={deleting}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
+                              title={`Delete Term ${activeTerm} of Year ${activeYear}`}
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        {currentWeekEntry && (
+                          <button
+                            type="button"
+                            onClick={() => goToWeekEntry(currentWeekEntry)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            This week (W{currentWeekEntry.week.week})
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── 3. Compact Active Term Context Row ── */}
                     {currentTermData && (
                       <div className="space-y-2">
-                        {/* Term title + date + actions */}
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                          <div className="flex flex-wrap items-center gap-2">
                             {editingTermTitle ? (
                               <div className="flex items-center gap-2">
                                 <input
                                   type="text"
                                   value={editTermTitleVal}
-                                  onChange={(e) =>
-                                    setEditTermTitleVal(e.target.value)
-                                  }
-                                  className="text-xs bg-background border border-primary rounded px-2 py-1 text-foreground focus:outline-none focus:ring-0 w-64 font-bold"
+                                  onChange={(e) => setEditTermTitleVal(e.target.value)}
+                                  className="text-xs bg-background border border-primary rounded-lg px-2.5 py-1 text-foreground focus:outline-none w-60 font-bold"
                                   placeholder="Rename Term Title"
                                   autoFocus
                                 />
                                 <button
-                                  onClick={() =>
-                                    void saveTermTitle(
-                                      activeTerm,
-                                      editTermTitleVal
-                                    )
-                                  }
-                                  disabled={
-                                    savingTermTitle || !editTermTitleVal.trim()
-                                  }
-                                  className="px-2 py-1 text-[10px] font-black bg-primary text-primary-foreground rounded transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
+                                  type="button"
+                                  onClick={() => void saveTermTitle(activeTerm, editTermTitleVal)}
+                                  disabled={savingTermTitle || !editTermTitleVal.trim()}
+                                  className="px-2.5 py-1 text-[10px] font-black bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
                                 >
                                   {savingTermTitle ? "…" : "Save"}
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => setEditingTermTitle(false)}
-                                  className="px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border rounded transition-colors shrink-0 cursor-pointer"
+                                  className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border rounded-lg"
                                 >
                                   Cancel
                                 </button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <h2 className="text-lg font-black">
+                              <div className="flex items-center gap-1.5">
+                                <h2 className="text-base font-black text-foreground">
                                   {isCohortFormat
                                     ? unitLabel(currentTermData)
-                                    : currentTermData.title ||
-                                      unitLabel(currentTermData)}
+                                    : currentTermData.title || unitLabel(currentTermData)}
                                 </h2>
-                                {canModifyCurriculum && (
+                                {canModifyCurriculum && activeTerm !== 0 && (
                                   <button
+                                    type="button"
                                     onClick={() => {
-                                      setEditTermTitleVal(
-                                        currentTermData.title ||
-                                          unitLabel(currentTermData)
-                                      );
+                                      setEditTermTitleVal(currentTermData.title || unitLabel(currentTermData));
                                       setEditingTermTitle(true);
                                     }}
-                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-border hover:border-primary/40 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded border border-border hover:border-primary/40 bg-muted text-muted-foreground hover:text-primary"
                                     title="Edit term title"
                                   >
                                     <PencilIcon className="w-3 h-3" />
@@ -5770,227 +5573,115 @@ export default function CurriculumPage() {
                                 )}
                               </div>
                             )}
-                            {!isCohortFormat &&
-                              (() => {
-                                const pt = getProgrammeTerm(
-                                  currentTermData.term,
-                                  effectiveProgramStartTerm
-                                );
-                                const PILL_COLOR: Record<number, string> = {
-                                  1: "bg-primary/10 border-primary/25 text-primary",
-                                  2: "bg-blue-500/10 border-blue-500/25 text-blue-600 dark:text-blue-400",
-                                  3: "bg-purple-500/10 border-purple-500/25 text-purple-600 dark:text-purple-400",
-                                };
-                                const DOT_COLOR: Record<number, string> = {
-                                  1: "bg-primary",
-                                  2: "bg-blue-400",
-                                  3: "bg-purple-400",
-                                };
-                                const theme = PROGRAMME_TERM_THEME[pt] ?? "";
-                                const pillCls = PILL_COLOR[pt] ?? PILL_COLOR[1];
-                                const dotCls = DOT_COLOR[pt] ?? DOT_COLOR[1];
-                                const schoolYear = effectiveAcademicYearForTerm(
-                                  currentTermData.term,
-                                  effectiveProgramStartTerm,
-                                  academicYear
-                                );
-                                // Both halves of the position, on one line and in
-                                // one size.
-                                //
-                                // This was two 9px pills in uppercase with the
-                                // widest tracking Tailwind offers — below any
-                                // readable floor, and it never showed the school's
-                                // own term at all. So the screen said "Prog. Term 1"
-                                // while the school was calling it Third Term, and
-                                // the reader had to hold the mapping in their head.
-                                //
-                                // Now it reads left to right the way it is spoken:
-                                // what the school calls this term, then where that
-                                // lands in the programme.
-                                return (
-                                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                                    <span className="text-[13px] font-bold text-foreground">
-                                      {humanTermLabel(currentTermData.term)} {schoolYear}
-                                    </span>
-                                    {/* "teaches", not "is": it states what happens
-                                        rather than asking the reader to work out
-                                        why two different terms name one thing. */}
-                                    <span className="text-[12px] text-muted-foreground">
-                                      teaches
-                                    </span>
-                                    <span
-                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-bold ${pillCls}`}
-                                    >
-                                      <span
-                                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotCls}`}
-                                      />
-                                      {humanProgrammeYear(activeYear)}, Term {pt}
-                                      {theme ? ` — ${theme}` : ""}
-                                    </span>
+
+                            {!isCohortFormat && activeTerm !== 0 && (() => {
+                              const pt = getProgrammeTerm(currentTermData.term, effectiveProgramStartTerm);
+                              const theme = PROGRAMME_TERM_THEME[pt] ?? "";
+                              const schoolYear = effectiveAcademicYearForTerm(
+                                currentTermData.term,
+                                effectiveProgramStartTerm,
+                                academicYear
+                              );
+                              return (
+                                <span className="text-xs text-muted-foreground">
+                                  · {humanTermLabel(currentTermData.term)} {schoolYear} ({humanProgrammeYear(activeYear)}, Term {pt}{theme ? ` — ${theme}` : ""})
+                                </span>
+                              );
+                            })()}
+                          </div>
+
+                          {!isCohortFormat && activeTerm !== 0 && (() => {
+                            const termAcYear = effectiveAcademicYearForTerm(
+                              activeTerm,
+                              effectiveProgramStartTerm,
+                              academicYear
+                            );
+                            const customStart = currentTermData.start_date;
+                            const td = customStart
+                              ? {
+                                  start: customStart,
+                                  end: resolveTermDates(activeTerm, termAcYear, termCalendar)?.end ?? "",
+                                }
+                              : resolveTermDates(activeTerm, termAcYear, termCalendar);
+                            if (!td) return null;
+                            return (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                {editingTermDate === activeTerm ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="date"
+                                      defaultValue={
+                                        currentTermData.start_date ??
+                                        resolveTermDates(activeTerm, termAcYear, termCalendar)?.start ??
+                                        ""
+                                      }
+                                      onBlur={(e) => {
+                                        if (e.target.value) saveTermDate(activeTerm, e.target.value);
+                                        else setEditingTermDate(null);
+                                      }}
+                                      autoFocus
+                                      className="text-xs bg-background border border-primary rounded px-2 py-0.5 text-foreground"
+                                    />
+                                    {savingTermDate && <ArrowPathIcon className="w-3 h-3 animate-spin" />}
                                   </div>
-                                );
-                              })()}
-                            {!isCohortFormat &&
-                              (() => {
-                                const termAcYear = effectiveAcademicYearForTerm(
-                                  activeTerm,
-                                  effectiveProgramStartTerm,
-                                  academicYear
-                                );
-                                const customStart = currentTermData.start_date;
-                                const td = customStart
-                                  ? {
-                                      start: customStart,
-                                      end:
-                                        resolveTermDates(
-                                          activeTerm,
-                                          termAcYear,
-                                          termCalendar
-                                        )?.end ?? "",
-                                    }
-                                  : resolveTermDates(
-                                      activeTerm,
-                                      termAcYear,
-                                      termCalendar
-                                    );
-                                if (!td) return null;
-                                return (
-                                  <div className="flex items-center gap-1.5 mt-0.5">
-                                    {editingTermDate === activeTerm ? (
-                                      <div className="flex items-center gap-2">
-                                        <input
-                                          type="date"
-                                          defaultValue={
-                                            currentTermData.start_date ??
-                                            resolveTermDates(
-                                              activeTerm,
-                                              termAcYear,
-                                              termCalendar
-                                            )?.start ??
-                                            ""
-                                          }
-                                          onBlur={(e) => {
-                                            if (e.target.value)
-                                              saveTermDate(
-                                                activeTerm,
-                                                e.target.value
-                                              );
-                                            else setEditingTermDate(null);
-                                          }}
-                                          autoFocus
-                                          className="text-xs bg-background border border-primary rounded px-2 py-1 text-foreground"
-                                        />
-                                        {savingTermDate && (
-                                          <ArrowPathIcon className="w-3 h-3 animate-spin text-muted-foreground" />
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <p className="text-[11px] text-muted-foreground font-bold">
-                                          {new Date(
-                                            td.start
-                                          ).toLocaleDateString("en-GB", {
+                                ) : (
+                                  <>
+                                    <span>
+                                      {new Date(td.start).toLocaleDateString("en-GB", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                      })}
+                                      {td.end
+                                        ? ` – ${new Date(td.end).toLocaleDateString("en-GB", {
                                             day: "numeric",
                                             month: "short",
                                             year: "numeric",
-                                          })}
-                                          {td.end ? (
-                                            <>
-                                              {" – "}
-                                              {new Date(
-                                                td.end
-                                              ).toLocaleDateString("en-GB", {
-                                                day: "numeric",
-                                                month: "short",
-                                                year: "numeric",
-                                              })}
-                                            </>
-                                          ) : null}
-                                        </p>
-                                        {canModifyCurriculum && (
-                                          <button
-                                            onClick={() => {
-                                              setEditingTermDate(activeTerm);
-                                              setTermDateDraft(
-                                                currentTermData.start_date ??
-                                                  resolveTermDates(
-                                                    activeTerm,
-                                                    effectiveAcademicYearForTerm(
-                                                      activeTerm,
-                                                      effectiveProgramStartTerm,
-                                                      academicYear
-                                                    ),
-                                                    termCalendar
-                                                  )?.start ??
-                                                  ""
-                                              );
-                                            }}
-                                            className="p-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-                                            title="Edit term start date"
-                                          >
-                                            <PencilIcon className="w-3 h-3" />
-                                          </button>
-                                        )}
-                                      </>
+                                          })}`
+                                        : ""}
+                                    </span>
+                                    {canModifyCurriculum && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingTermDate(activeTerm);
+                                          setTermDateDraft(
+                                            currentTermData.start_date ??
+                                              resolveTermDates(activeTerm, termAcYear, termCalendar)?.start ??
+                                              ""
+                                          );
+                                        }}
+                                        className="p-0.5 text-muted-foreground/60 hover:text-foreground"
+                                        title="Edit term start date"
+                                      >
+                                        <PencilIcon className="w-3 h-3" />
+                                      </button>
                                     )}
-                                  </div>
-                                );
-                              })()}
-                          </div>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
-                        {currentTermData.objectives?.length > 0 && (
-                          <ul className="flex flex-wrap gap-2">
-                            {currentTermData.objectives.map((o, i) => (
-                              <li
-                                key={i}
-                                className="text-[11px] bg-muted text-muted-foreground px-2.5 py-1 border border-border font-bold"
-                              >
-                                {o}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    )}
 
-                    {/* Two ways back to the middle of the year: land on today's
-                        week, or open the whole year at once. Both used to require
-                        knowing that the term control was a dropdown. */}
-                    {(currentWeekEntry || termsForActiveYear.length > 1) && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {currentWeekEntry && (
-                          <button
-                            type="button"
-                            onClick={() => goToWeekEntry(currentWeekEntry)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                            Jump to this week (Week {currentWeekEntry.week.week})
-                          </button>
-                        )}
-                        {termsForActiveYear.length > 1 && activeTerm !== 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveTerm(1);
-                              setActiveWeek(null);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/20 transition-colors cursor-pointer"
-                          >
-                            📅 View Term 1 (Weeks 1–12)
-                          </button>
-                        )}
-                        {termsForActiveYear.length > 1 && activeTerm !== 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveTerm(0);
-                              setActiveWeek(null);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card/60 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
-                          >
-                            ✨ Show all {orderedWeeks.length} weeks
-                          </button>
+                        {currentTermData.objectives?.length > 0 && (
+                          <details className="group rounded-xl border border-border bg-card/50 px-3.5 py-2">
+                            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                              <span>Term learning goals ({currentTermData.objectives.length})</span>
+                              <span className="text-primary group-open:hidden">Show</span>
+                              <span className="hidden text-primary group-open:inline">Hide</span>
+                            </summary>
+                            <ul className="mt-2.5 flex flex-wrap gap-1.5 border-t border-border pt-2.5">
+                              {currentTermData.objectives.map((o, i) => (
+                                <li
+                                  key={i}
+                                  className="text-[11px] bg-muted text-foreground/85 px-2.5 py-1 rounded-lg border border-border font-medium"
+                                >
+                                  {o}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
                         )}
                       </div>
                     )}
@@ -6174,90 +5865,116 @@ export default function CurriculumPage() {
                       </div>
                     )}
 
-                    {/* Materials + tools */}
-                    {(curriculum.content.materials_required?.length > 0 ||
-                      curriculum.content.recommended_tools?.length > 0) && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {curriculum.content.materials_required?.length > 0 && (
-                          <div className="bg-card border border-border p-4">
-                            <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">
-                              Materials Required
-                            </h3>
-                            <ul className="space-y-1">
-                              {curriculum.content.materials_required.map(
-                                (m, i) => (
-                                  <li
-                                    key={i}
-                                    className="flex gap-2 text-xs text-foreground/70"
-                                  >
-                                    <span className="text-primary">•</span>
-                                    {m}
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                        {curriculum.content.recommended_tools?.length > 0 && (
-                          <div className="bg-card border border-border p-4">
-                            <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">
-                              Recommended Tools
-                            </h3>
-                            <ul className="space-y-1">
-                              {curriculum.content.recommended_tools.map(
-                                (t, i) => (
-                                  <li
-                                    key={i}
-                                    className="flex gap-2 text-xs text-foreground/70"
-                                  >
-                                    <span className="text-primary">•</span>
-                                    {t}
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ── Course overview + learning outcomes (from syllabus content) ── */}
+                    {/* Consolidated Course Overview, Outcomes & Materials disclosure */}
                     {(curriculum.content.overview ||
-                      curriculum.content.learning_outcomes?.length > 0) && (
-                      <div className="space-y-4 mt-2">
-                        {curriculum.content.overview && (
-                          <div className="bg-card border border-border p-5">
-                            <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">
-                              About this course
-                            </h3>
-                            <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
-                              {curriculum.content.overview}
+                      curriculum.content.learning_outcomes?.length > 0 ||
+                      curriculum.content.materials_required?.length > 0 ||
+                      curriculum.content.recommended_tools?.length > 0) && (
+                      <details className="group rounded-2xl border border-border bg-card overflow-hidden">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-foreground">
+                              Course Overview, Learning Outcomes &amp; Materials
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                              {[
+                                curriculum.content.overview ? "Course summary" : null,
+                                curriculum.content.learning_outcomes?.length
+                                  ? `${curriculum.content.learning_outcomes.length} outcomes`
+                                  : null,
+                                curriculum.content.materials_required?.length
+                                  ? `${curriculum.content.materials_required.length} materials`
+                                  : null,
+                                curriculum.content.recommended_tools?.length
+                                  ? `${curriculum.content.recommended_tools.length} tools`
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
                             </p>
                           </div>
-                        )}
-                        {curriculum.content.learning_outcomes?.length > 0 && (
-                          <div className="bg-card border border-border p-5">
-                            <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">
-                              What students will learn
-                            </h3>
-                            <ul className="space-y-2">
-                              {curriculum.content.learning_outcomes.map(
-                                (o: string, i: number) => (
-                                  <li
-                                    key={i}
-                                    className="flex gap-3 text-sm text-foreground/80"
-                                  >
-                                    <span className="text-emerald-600 dark:text-emerald-400 font-black shrink-0 text-xs mt-0.5">
-                                      ✓
-                                    </span>
-                                    <span>{o}</span>
-                                  </li>
-                                )
+                          <ChevronDownIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="border-t border-border p-4 sm:p-5 space-y-4">
+                          {curriculum.content.overview && (
+                            <div>
+                              <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">
+                                About this course
+                              </h3>
+                              <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
+                                {curriculum.content.overview}
+                              </p>
+                            </div>
+                          )}
+                          {curriculum.content.learning_outcomes?.length > 0 && (
+                            <div>
+                              <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">
+                                What students will learn
+                              </h3>
+                              <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {curriculum.content.learning_outcomes.map(
+                                  (o: string, i: number) => (
+                                    <li
+                                      key={i}
+                                      className="flex gap-2.5 text-xs sm:text-sm text-foreground/80"
+                                    >
+                                      <span className="text-emerald-700 dark:text-emerald-400 font-black shrink-0 text-xs mt-0.5">
+                                        ✓
+                                      </span>
+                                      <span>{o}</span>
+                                    </li>
+                                  )
+                                )}
+                              </ul>
+                            </div>
+                          )}
+                          {(curriculum.content.materials_required?.length > 0 ||
+                            curriculum.content.recommended_tools?.length > 0) && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border/60">
+                              {curriculum.content.materials_required?.length > 0 && (
+                                <div>
+                                  <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">
+                                    Materials Required
+                                  </h3>
+                                  <ul className="space-y-1">
+                                    {curriculum.content.materials_required.map(
+                                      (m, i) => (
+                                        <li
+                                          key={i}
+                                          className="flex gap-2 text-xs text-foreground/75"
+                                        >
+                                          <span className="text-primary">•</span>
+                                          <span>{m}</span>
+                                        </li>
+                                      )
+                                    )}
+                                  </ul>
+                                </div>
                               )}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
+                              {curriculum.content.recommended_tools?.length > 0 && (
+                                <div>
+                                  <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">
+                                    Recommended Tools
+                                  </h3>
+                                  <ul className="space-y-1">
+                                    {curriculum.content.recommended_tools.map(
+                                      (t, i) => (
+                                        <li
+                                          key={i}
+                                          className="flex gap-2 text-xs text-foreground/75"
+                                        >
+                                          <span className="text-primary">•</span>
+                                          <span>{t}</span>
+                                        </li>
+                                      )
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </details>
                     )}
 
                     {/* ── Smart Teaching Template ── */}
@@ -7442,7 +7159,49 @@ export default function CurriculumPage() {
                     ) : null;
                   })()}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {isCurriculumReader && curriculum && (
+                    <Link
+                      href={
+                        implementationList.length === 1
+                          ? (() => {
+                              const k = Array.isArray(implementationList[0].classes)
+                                ? implementationList[0].classes[0]
+                                : implementationList[0].classes;
+                              return k?.id
+                                ? buildClassTeachingHref({
+                                    classId: k.id,
+                                    courseId: curriculum.course_id,
+                                  })
+                                : "/dashboard/classes";
+                            })()
+                          : "/dashboard/classes"
+                      }
+                      className="hidden sm:inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-primary-foreground hover:opacity-90 transition-opacity"
+                      title="Open class teaching workspace"
+                    >
+                      <AcademicCapIcon className="w-3.5 h-3.5" />
+                      Teach
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => printWeek()}
+                    className="min-h-[38px] px-2.5 rounded-lg border border-border bg-background hover:bg-muted text-[10px] font-bold text-foreground inline-flex items-center gap-1 transition-colors"
+                    title="Print this week's lesson guide"
+                  >
+                    <PrinterIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="hidden sm:inline">Print week</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={exportingPdf}
+                    onClick={() => void exportCurriculumPdf("week")}
+                    className="min-h-[38px] px-2.5 rounded-lg border border-border bg-background hover:bg-muted text-[10px] font-bold text-foreground inline-flex items-center gap-1 transition-colors disabled:opacity-50"
+                    title="Download PDF for this week"
+                  >
+                    <span>{exportingPdf ? "…" : "PDF"}</span>
+                  </button>
                   {canGenerate &&
                     (activeWeek.lesson_plan || activeWeek.assessment_plan) && (
                       <button
@@ -7484,6 +7243,7 @@ export default function CurriculumPage() {
                   <button
                     onClick={() => setActiveWeek(null)}
                     className="text-muted-foreground hover:text-foreground transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    aria-label="Close week guide"
                   >
                     <XMarkIcon className="w-5 h-5" />
                   </button>

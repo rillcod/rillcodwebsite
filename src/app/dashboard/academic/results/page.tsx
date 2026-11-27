@@ -376,23 +376,45 @@ function CentralResultsPageInner() {
 
   return (
     <div className={`mx-auto max-w-7xl space-y-4 p-4 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}>
-      <div className="space-y-2">
-        <h1 className="text-2xl font-black tracking-tight">Auto-fill</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Pull scores from class work for this term. Auto-fill never overwrites typed or published reports.
-        </p>
-      </div>
+      <header className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl">Auto-fill results</h1>
+            {classId ? (
+              <Link
+                href={buildClassTeachingHref({ classId, courseId })}
+                className="rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/15"
+              >
+                Open class teaching →
+              </Link>
+            ) : null}
+          </div>
+          <p className="max-w-2xl text-xs sm:text-sm text-muted-foreground">
+            Pull scores from recorded class work for this term. Typed or published reports are never overwritten.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <LearnerReportFlowStrip
+            current="prepare"
+            classId={classId}
+            studentId={studentId}
+            courseId={courseId}
+            reportId={reportId || selectedReport?.id}
+            from="prepare"
+          />
+        </div>
+      </header>
 
-      <LearnerReportFlowStrip
-        current="prepare"
-        classId={classId}
-        studentId={studentId}
-        courseId={courseId}
-        reportId={reportId || selectedReport?.id}
-        from="prepare"
-      />
-
-      <AutoFillFlowGuide />
+      <details className="group rounded-xl border border-border bg-card/60 px-4 py-2.5">
+        <summary className="cursor-pointer list-none text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-between [&::-webkit-details-marker]:hidden">
+          <span>How auto-fill, typed scores, and publishing work together</span>
+          <span className="text-primary group-open:hidden">Show guide</span>
+          <span className="hidden text-primary group-open:inline">Hide</span>
+        </summary>
+        <div className="mt-3">
+          <AutoFillFlowGuide />
+        </div>
+      </details>
 
       {compulsorySchoolPapers ? (
         <div className="rounded-2xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-muted-foreground">
@@ -411,15 +433,6 @@ function CentralResultsPageInner() {
           classSession={classSession}
           reportSession={sessionFromReport(selectedReport)}
         />
-      ) : null}
-
-      {classId ? (
-        <p className="text-xs text-muted-foreground">
-          <Link href={buildClassTeachingHref({ classId, courseId })} className="font-bold text-primary hover:underline">
-            Open class teaching
-          </Link>
-          {' '}to record assignments, CBT, and attendance before auto-fill.
-        </p>
       ) : null}
 
       {error ? (

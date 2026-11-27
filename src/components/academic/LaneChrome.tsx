@@ -28,13 +28,22 @@ export function LaneChrome({
     return null;
   }
 
-  // Guide and diagnostic pages are supporting tools, not workflow stages.
-  if (pathname === "/dashboard/academic/guide") return null;
+  // Supporting tools, settings, and diagnostic subpages have their own back-links and are not workflow stages.
+  if (
+    pathname === "/dashboard/academic/guide" ||
+    pathname === "/dashboard/academic/pathways" ||
+    pathname === "/dashboard/academic/weights" ||
+    pathname.startsWith("/dashboard/academic/build/progress")
+  ) {
+    return null;
+  }
 
   const activeIndex = ACADEMIC_WORKFLOW.findIndex((item) => {
     if (item.id === "overview") return pathname === item.href;
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
   });
+
+  if (activeIndex === -1) return null;
 
   const workflowHref = (id: string, href: string) =>
     lane === "asset" && (id === "curriculum" || id === "approval")
@@ -42,16 +51,15 @@ export function LaneChrome({
       : href;
 
   return (
-    <div className="border-b border-border bg-background/95 px-4 py-3 sm:px-6 md:sticky md:top-0 md:z-30 md:backdrop-blur lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <p className="text-sm font-black text-foreground">Academic journey</p>
-          <p className="text-xs text-muted-foreground">
-            {activeIndex <= 0 ? "Start here" : `Step ${activeIndex} of 4`}
-          </p>
-        </div>
-        <nav aria-label="Academic workflow" className="overflow-x-auto">
-          <ol className="flex min-w-max items-center gap-2" role="list">
+    <div className="border-b border-border bg-background/95 px-3 py-2 sm:px-6 md:sticky md:top-0 md:z-30 md:backdrop-blur lg:px-8 print:hidden">
+      <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-3">
+        <nav aria-label="Academic workflow" className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
+          <ol className="flex min-w-max items-center gap-1.5" role="list">
+            <li className="mr-1.5 hidden items-center lg:flex">
+              <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+                Academic Office
+              </span>
+            </li>
             {ACADEMIC_WORKFLOW.map((item, index) => {
               const active = index === activeIndex;
               const earlier = activeIndex > index;
@@ -61,14 +69,14 @@ export function LaneChrome({
                     href={workflowHref(item.id, item.href)}
                     aria-current={active ? (item.id === "overview" ? "page" : "step") : undefined}
                     title={item.purpose}
-                    className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       active
-                        ? "border-primary bg-primary text-primary-foreground"
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
                         : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
                   >
                     <span
-                      className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                      className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
                         active
                           ? "bg-primary-foreground/20"
                           : earlier
@@ -77,7 +85,7 @@ export function LaneChrome({
                       }`}
                     >
                       {earlier ? (
-                        <CheckCircleIcon className="h-4 w-4" />
+                        <CheckCircleIcon className="h-3.5 w-3.5" />
                       ) : (
                         item.step
                       )}
@@ -90,6 +98,9 @@ export function LaneChrome({
             })}
           </ol>
         </nav>
+        <p className="hidden shrink-0 text-[11px] font-bold text-muted-foreground md:block">
+          {activeIndex <= 0 ? "Overview" : `Step ${activeIndex} of 4`}
+        </p>
       </div>
     </div>
   );

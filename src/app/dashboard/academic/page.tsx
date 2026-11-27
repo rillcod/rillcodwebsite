@@ -147,12 +147,6 @@ const SUPPORTING_TOOLS: OfficeTool[] = [
     group: "governance",
     adminOnly: true,
   },
-  {
-    title: "How this works",
-    description: "A short guide from curriculum to results.",
-    href: "/dashboard/academic/guide",
-    group: "help",
-  },
 ];
 
 export default function AcademicSpinePage() {
@@ -456,18 +450,24 @@ export default function AcademicSpinePage() {
 
           {!isAdmin && !isStudent && (data?.classes?.length ?? 0) > 0 && (
             <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-              <div className="flex items-end justify-between gap-3">
+              <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h2 className="text-base font-black text-foreground">
                     {isTeacher ? "Continue teaching" : "Class delivery"}
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Open the class where work should continue.
+                    Open the class where work should continue, or check the official weekly curriculum.
                   </p>
                 </div>
-                <Link href="/dashboard/classes" className="text-xs font-bold text-primary hover:underline">
-                  All classes
-                </Link>
+                <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
+                  <Link href="/dashboard/academic/build" className="text-primary hover:underline">
+                    Official curriculum
+                  </Link>
+                  <span className="text-muted-foreground/40">·</span>
+                  <Link href="/dashboard/classes" className="text-primary hover:underline">
+                    All classes
+                  </Link>
+                </div>
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {(data?.classes ?? []).slice(0, 6).map((klass) => (

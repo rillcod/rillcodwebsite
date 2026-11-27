@@ -414,43 +414,84 @@ export function MasterCurriculumRoster({
     (debris?.teaching?.total || 0);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-muted border border-primary/20 p-6 backdrop-blur-xl shadow-lg">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/30">
-                <SparklesIcon className="w-3 h-3 animate-pulse" />
-                {isAdmin ? 'Curriculum management' : 'Official curricula'}
-              </span>
-              <span className="text-xs font-bold text-muted-foreground bg-background/60 px-3 py-1 rounded-full border border-border">
-                {curricula.length === 1 ? '1 curriculum' : `${curricula.length} curricula`}
-              </span>
-            </div>
-            <h1 className="text-2xl font-black tracking-tight text-foreground uppercase">
-              Curricula
-            </h1>
-            <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-              {isAdmin
-                ? 'Review saved curricula, publication status, and where each one is in use.'
-                : 'These are the official weeks your classes teach. Open a course to see the topics, then teach from My Classes.'}
-            </p>
+    <div className="space-y-4 animate-in fade-in duration-200">
+      {/* Compact single-surface toolbar (no duplicate hero header below Curriculum Builder bar) */}
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="relative flex-1 min-w-[220px]">
+            <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              aria-label="Search curricula"
+              placeholder="Search course, programme, or school…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 text-xs bg-background border border-border rounded-xl focus:outline-none focus:border-primary"
+            />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2">
+            {isAdmin && (
+              <div className="inline-flex items-center gap-1 bg-background border border-border rounded-xl p-1">
+                <button
+                  type="button"
+                  onClick={() => setVisibilityFilter('all')}
+                  className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                    visibilityFilter === 'all'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  All ({curricula.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisibilityFilter('visible')}
+                  className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                    visibilityFilter === 'visible'
+                      ? 'bg-emerald-700 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Visible ({curricula.filter((c) => c.is_visible_to_school).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisibilityFilter('hidden')}
+                  className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                    visibilityFilter === 'hidden'
+                      ? 'bg-amber-800 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Hidden ({curricula.filter((c) => !c.is_visible_to_school).length})
+                </button>
+              </div>
+            )}
+
+            {isAdmin && selectedIds.length > 0 && (
+              <button
+                type="button"
+                onClick={handleBulkDeleteSelected}
+                disabled={isProcessingBulk}
+                className="py-2 px-3.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+              >
+                <TrashIcon className="w-3.5 h-3.5" />
+                Delete ({selectedIds.length})
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onRefresh}
-              className="px-4 py-2.5 text-xs font-bold bg-card border border-border text-foreground hover:bg-muted rounded-xl shadow-sm transition-all duration-200 flex items-center gap-2"
+              className="px-3.5 py-2 text-xs font-bold bg-background border border-border text-foreground hover:bg-muted rounded-xl transition-colors flex items-center gap-1.5"
             >
-              <ArrowPathIcon className="w-4 h-4 text-primary" /> Refresh
+              <ArrowPathIcon className="w-3.5 h-3.5 text-primary" /> Refresh
             </button>
 
             {isAdmin && (
               <details className="relative">
-                <summary className="cursor-pointer list-none rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground hover:bg-muted">
+                <summary className="cursor-pointer list-none rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-bold text-foreground hover:bg-muted [&::-webkit-details-marker]:hidden">
                   Maintenance
                 </summary>
                 <div className="absolute right-0 z-30 mt-2 w-64 space-y-2 rounded-2xl border border-border bg-card p-3 shadow-xl">
@@ -478,69 +519,6 @@ export function MasterCurriculumRoster({
               </details>
             )}
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5 mt-5 border-t border-border/60">
-          <div className="relative">
-            <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground absolute left-3.5 top-3" />
-            <input
-              type="text"
-              placeholder="Search course, school, or curriculum ID…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs bg-background/80 border border-border rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-inner font-mono"
-            />
-          </div>
-
-          {isAdmin && (
-          <div className="flex items-center gap-1 bg-background/80 border border-border rounded-xl p-1 shadow-inner">
-            <button
-              type="button"
-              onClick={() => setVisibilityFilter('all')}
-              className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                visibilityFilter === 'all'
-                  ? 'bg-primary text-primary-foreground shadow-md'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              All ({curricula.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setVisibilityFilter('visible')}
-              className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                visibilityFilter === 'visible'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Visible ({curricula.filter((c) => c.is_visible_to_school).length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setVisibilityFilter('hidden')}
-              className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                visibilityFilter === 'hidden'
-                  ? 'bg-amber-600 text-white shadow-md'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Hidden ({curricula.filter((c) => !c.is_visible_to_school).length})
-            </button>
-          </div>
-          )}
-
-          {isAdmin && selectedIds.length > 0 && (
-            <button
-              type="button"
-              onClick={handleBulkDeleteSelected}
-              disabled={isProcessingBulk}
-              className="py-2.5 px-4 bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 animate-in fade-in"
-            >
-              <TrashIcon className="w-4 h-4" />
-              Delete Selected ({selectedIds.length})
-            </button>
-          )}
         </div>
       </div>
 
@@ -814,29 +792,20 @@ export function MasterCurriculumRoster({
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
-                        {isAdmin ? (
                         <button
                           type="button"
                           onClick={() => onSelectCurriculum(item)}
-                          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all flex items-center gap-1.5"
                         >
-                          <BookOpenIcon className="w-3.5 h-3.5" /> Inspect Syllabus
+                          <BookOpenIcon className="w-3.5 h-3.5" />
+                          {isAdmin ? 'Open Builder' : 'Open Weekly Guide'}
                         </button>
-                        ) : (
-                        <button
-                          type="button"
-                          onClick={() => toggleExpand(item.id)}
-                          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-1.5"
-                        >
-                          <BookOpenIcon className="w-3.5 h-3.5" /> See weeks
-                        </button>
-                        )}
 
                         <button
                           type="button"
                           onClick={() => toggleExpand(item.id)}
                           className="p-2.5 border border-border text-muted-foreground hover:text-foreground bg-muted/20 hover:bg-muted/50 rounded-xl transition-all"
-                          title="Show terms and blockers"
+                          title={isAdmin ? 'Show terms and blockers' : 'Quick preview of terms'}
                         >
                           {isExpanded ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronRightIcon className="w-4 h-4" />}
                         </button>
@@ -856,7 +825,7 @@ export function MasterCurriculumRoster({
                               type="button"
                               onClick={() => handleDeleteItem(item.id)}
                               disabled={deletingId === item.id}
-                              className="p-2.5 bg-rose-700/10 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
+                              className="p-2.5 bg-rose-700/10 text-rose-700 dark:text-rose-400 hover:bg-rose-700 hover:text-white border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
                               title="Delete this curriculum"
                             >
                               <TrashIcon className="w-4 h-4" />
@@ -895,94 +864,103 @@ export function MasterCurriculumRoster({
                             ))}
                           </div>
                           {!isAdmin && (
-                            <Link
-                              href="/dashboard/classes"
-                              className="inline-flex text-xs font-bold text-primary hover:underline"
-                            >
-                              Teach these weeks from My Classes
-                            </Link>
+                            <div className="flex flex-wrap items-center gap-3 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => onSelectCurriculum(item)}
+                                className="text-xs font-bold text-primary hover:underline"
+                              >
+                                Open full weekly lesson guides →
+                              </button>
+                              <span className="text-muted-foreground/40">·</span>
+                              <Link
+                                href="/dashboard/classes"
+                                className="inline-flex text-xs font-bold text-muted-foreground hover:text-foreground hover:underline"
+                              >
+                                Teach from My Classes
+                              </Link>
+                            </div>
                           )}
                         </div>
 
-                        {/* Same list, two meanings. On a published curriculum these are the classes
-                            teaching from it — the way a teacher reaches their class — so it must not
-                            wear danger colours. It only reads as an obstacle when you are deleting. */}
-                        <div className={`rounded-xl p-4 space-y-3 border ${
-                          liveEdition
-                            ? 'bg-muted/20 border-border'
-                            : 'bg-rose-500/5 border-rose-500/20'
-                        }`}>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className={`text-xs font-black uppercase tracking-wider ${
-                              liveEdition ? 'text-foreground' : 'text-rose-500'
-                            }`}>
-                              {liveEdition ? 'Where this is being taught' : 'What is still using this'}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => void loadBlockers(item.id)}
-                              className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 border border-border rounded-lg hover:bg-muted"
-                            >
-                              Check again
-                            </button>
+                        {(isAdmin || liveEdition) && (
+                          <div className={`rounded-xl p-4 space-y-3 border ${
+                            liveEdition
+                              ? 'bg-muted/20 border-border'
+                              : 'bg-rose-500/5 border-rose-500/20'
+                          }`}>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className={`text-xs font-black uppercase tracking-wider ${
+                                liveEdition ? 'text-foreground' : 'text-rose-500'
+                              }`}>
+                                {liveEdition ? 'Where this is being taught' : 'What is still using this'}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => void loadBlockers(item.id)}
+                                className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 border border-border rounded-lg hover:bg-muted"
+                              >
+                                Check again
+                              </button>
+                            </div>
+
+                            {blockers?.loading && (
+                              <p className="text-xs text-muted-foreground">Checking…</p>
+                            )}
+                            {blockers?.error && (
+                              <p className="text-xs text-rose-500">{blockers.error}</p>
+                            )}
+                            {!blockers?.loading && blockers?.dependents?.length === 0 && !blockers?.error && (
+                              liveEdition ? (
+                                <p className="text-xs text-muted-foreground">
+                                  Published, but no class is teaching from it yet. A class picks it up
+                                  once its class plan is prepared for the term.
+                                </p>
+                              ) : (
+                                <p className="text-xs text-emerald-600 font-bold">
+                                  Nothing is using this curriculum. It is safe to delete.
+                                </p>
+                              )
+                            )}
+                            {(blockers?.dependents?.length || 0) > 0 && (
+                              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                                {blockers!.dependents.map((d) => (
+                                  <li
+                                    key={`${d.kind}-${d.id}`}
+                                    className="bg-card border border-border rounded-xl px-3 py-2 text-xs space-y-1"
+                                  >
+                                    <div className="flex flex-wrap items-center gap-2 justify-between">
+                                      <span className="font-bold text-foreground">{d.label}</span>
+                                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                        {KIND_LABEL[d.kind] || d.kind} · {d.onCleanup}
+                                      </span>
+                                    </div>
+                                    <p className="text-muted-foreground">{d.detail}</p>
+                                    {d.href && (
+                                      <a
+                                        href={d.href}
+                                        className="inline-flex items-center gap-1 text-primary font-bold hover:underline"
+                                      >
+                                        <ArrowRightIcon className="w-3 h-3" /> Open
+                                      </a>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+
+                            {isAdmin && (blockers?.dependents?.length || 0) > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteItem(item.id, true)}
+                                disabled={deletingId === item.id}
+                                className="w-full py-2.5 bg-rose-700 hover:bg-rose-800 text-white text-xs font-black uppercase tracking-wider rounded-xl disabled:opacity-50"
+                              >
+                                {deletingId === item.id ? 'Cleaning…' : 'Clean blockers and delete'}
+                              </button>
+                            )}
                           </div>
-
-                          {blockers?.loading && (
-                            <p className="text-xs text-muted-foreground">Checking…</p>
-                          )}
-                          {blockers?.error && (
-                            <p className="text-xs text-rose-500">{blockers.error}</p>
-                          )}
-                          {!blockers?.loading && blockers?.dependents?.length === 0 && !blockers?.error && (
-                            liveEdition ? (
-                              <p className="text-xs text-muted-foreground">
-                                Published, but no class is teaching from it yet. A class picks it up
-                                once its class plan is prepared for the term.
-                              </p>
-                            ) : (
-                              <p className="text-xs text-emerald-600 font-bold">
-                                Nothing is using this curriculum. It is safe to delete.
-                              </p>
-                            )
-                          )}
-                          {(blockers?.dependents?.length || 0) > 0 && (
-                            <ul className="space-y-2 max-h-64 overflow-y-auto">
-                              {blockers!.dependents.map((d) => (
-                                <li
-                                  key={`${d.kind}-${d.id}`}
-                                  className="bg-card border border-border rounded-xl px-3 py-2 text-xs space-y-1"
-                                >
-                                  <div className="flex flex-wrap items-center gap-2 justify-between">
-                                    <span className="font-bold text-foreground">{d.label}</span>
-                                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                      {KIND_LABEL[d.kind] || d.kind} · {d.onCleanup}
-                                    </span>
-                                  </div>
-                                  <p className="text-muted-foreground">{d.detail}</p>
-                                  {d.href && (
-                                    <a
-                                      href={d.href}
-                                      className="inline-flex items-center gap-1 text-primary font-bold hover:underline"
-                                    >
-                                      <ArrowRightIcon className="w-3 h-3" /> Open
-                                    </a>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-
-                          {isAdmin && (blockers?.dependents?.length || 0) > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteItem(item.id, true)}
-                              disabled={deletingId === item.id}
-                              className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-wider rounded-xl disabled:opacity-50"
-                            >
-                              {deletingId === item.id ? 'Cleaning…' : 'Clean blockers and delete'}
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1041,7 +1019,7 @@ export function MasterCurriculumRoster({
                 type="button"
                 onClick={handleMasterReset}
                 disabled={resetConfirmInput.trim() !== 'RESET' || isProcessingBulk}
-                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md"
+                className="flex-1 py-3 bg-rose-700 hover:bg-rose-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md"
               >
                 {isProcessingBulk ? 'Deleting...' : 'Yes, delete everything'}
               </button>

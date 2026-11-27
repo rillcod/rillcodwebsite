@@ -71,24 +71,24 @@ export function OfficialDirectionStatus({
 }: OfficialDirectionStatusProps) {
   if (loading) {
     return (
-      <div className="h-12 animate-pulse rounded-xl border border-border bg-card" />
+      <div className="h-9 animate-pulse rounded-xl border border-border bg-muted/40" />
     );
   }
 
   if (!release) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3">
-        <ShieldCheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-50" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-foreground">Draft · not published yet</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Classes cannot teach this until you publish it on Rollout.
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 px-3.5 py-2 text-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <ShieldCheckIcon className="h-4 w-4 shrink-0 text-muted-foreground opacity-60" />
+          <span className="font-bold text-foreground">Draft · not published yet</span>
+          <span className="hidden sm:inline text-muted-foreground">
+            — publish on Rollout before classes can teach it
+          </span>
         </div>
         {publishHref && (
           <Link
             href={publishHref}
-            className="shrink-0 text-xs font-bold text-primary hover:underline"
+            className="shrink-0 font-bold text-primary hover:underline"
           >
             Publish →
           </Link>
@@ -104,51 +104,37 @@ export function OfficialDirectionStatus({
 
   if (assigned) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3">
-        <ShieldCheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">
-            Published · available to this school
-          </p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {releaseMeta(release)}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3.5 py-2 text-xs">
+        <ShieldCheckIcon className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <span className="font-bold text-foreground">Published · active for this school</span>
+        <span className="truncate text-muted-foreground">· {releaseMeta(release)}</span>
       </div>
     );
   }
 
   if (stale) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3">
-        <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">
-            Newer edition published
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {releaseMeta(release)} — this school is still on an older one.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3.5 py-2 text-xs">
+        <ExclamationTriangleIcon className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <span className="font-bold text-foreground">Newer edition published</span>
+        <span className="text-muted-foreground">
+          · {releaseMeta(release)} — school stays on its current version until updated
+        </span>
       </div>
     );
   }
 
   if (unassigned) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3">
-        <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-foreground">
-            Published · not yet with this school
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {releaseMeta(release)}
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3.5 py-2 text-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <ExclamationTriangleIcon className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span className="font-bold text-foreground">Published · not yet assigned to this school</span>
+          <span className="hidden sm:inline truncate text-muted-foreground">· {releaseMeta(release)}</span>
         </div>
         <Link
           href={assignHref}
-          className="shrink-0 text-xs font-bold text-primary hover:underline"
+          className="shrink-0 font-bold text-primary hover:underline"
         >
           Open rollout →
         </Link>
@@ -157,19 +143,17 @@ export function OfficialDirectionStatus({
   }
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3">
-      <ShieldCheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-foreground">Published</p>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {releaseMeta(release)}
-        </p>
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3.5 py-2 text-xs">
+      <div className="flex items-center gap-2 min-w-0">
+        <ShieldCheckIcon className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <span className="font-bold text-foreground">Published</span>
+        <span className="truncate text-muted-foreground">· {releaseMeta(release)}</span>
       </div>
       <Link
         href={assignHref}
-        className="shrink-0 text-xs font-bold text-primary hover:underline"
+        className="shrink-0 font-bold text-primary hover:underline"
       >
-        Schools →
+        Rollout →
       </Link>
     </div>
   );

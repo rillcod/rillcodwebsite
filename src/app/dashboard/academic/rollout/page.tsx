@@ -747,45 +747,52 @@ function RolloutWorkspace() {
 
   return (
     <main className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8 mobile-page-root">
-      <header className="mb-6">
-        <h1 className="text-3xl font-black">Rollout</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Check this curriculum, then publish it to schools. Live class plans stay as they are.
-        </p>
+      {/* Unified Rollout Header + Active Draft Selector */}
+      <header className={`${SECTION} mb-5`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-widest text-primary">
+              Approve &amp; assign
+            </p>
+            <h1 className="mt-1 text-2xl font-black text-foreground sm:text-3xl">Rollout</h1>
+            <p className="mt-1.5 max-w-xl text-sm leading-6 text-muted-foreground">
+              Check readiness, then publish to schools. Live class plans already in progress stay protected.
+            </p>
+          </div>
+
+          <div className="w-full lg:max-w-md">
+            <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground">
+              Selected curriculum draft
+              <select
+                value={curriculumId}
+                onChange={(event) => { setCurriculumId(event.target.value); setReport(null); setPreview(null); setMessage(''); }}
+                className="mt-1.5 w-full rounded-xl border border-border bg-background p-2.5 text-sm font-bold text-foreground"
+              >
+                {drafts.length === 0 && <option value="">No curriculum drafts yet</option>}
+                {drafts.map((draft) => {
+                  const c = relation(draft.courses);
+                  return <option key={draft.id} value={draft.id}>{c?.title ?? 'Course'} · v{draft.version ?? 1}</option>;
+                })}
+              </select>
+            </label>
+            {selected && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {programme?.name ? `${programme.name} · ` : ''}
+                {publishedForCourse.length > 0
+                  ? `${publishedForCourse.length} live edition${publishedForCourse.length === 1 ? '' : 's'}`
+                  : 'No live edition yet'}
+                {' · '}
+                <Link href={buildCurriculumHref({ courseId: selected.course_id })} className="font-bold text-primary hover:underline">
+                  Edit in builder →
+                </Link>
+              </p>
+            )}
+          </div>
+        </div>
       </header>
 
       {message && <p className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700 dark:text-emerald-300">{message}</p>}
       {error && <p role="alert" className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-bold text-destructive">{error}</p>}
-
-      {/* Which curriculum everything below acts on. */}
-      <section className={`${SECTION} mb-5`}>
-        <label className="block text-sm font-bold">
-          Curriculum
-          <select
-            value={curriculumId}
-            onChange={(event) => { setCurriculumId(event.target.value); setReport(null); setPreview(null); setMessage(''); }}
-            className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm"
-          >
-            {drafts.length === 0 && <option value="">No curriculum drafts yet</option>}
-            {drafts.map((draft) => {
-              const c = relation(draft.courses);
-              return <option key={draft.id} value={draft.id}>{c?.title ?? 'Course'} · v{draft.version ?? 1}</option>;
-            })}
-          </select>
-        </label>
-        {selected && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {programme?.name ? `${programme.name} · ` : ''}
-            {publishedForCourse.length > 0
-              ? `${publishedForCourse.length} live edition${publishedForCourse.length === 1 ? '' : 's'} for this course`
-              : 'No live edition yet for this course'}
-            {' · '}
-            <Link href={buildCurriculumHref({ courseId: selected.course_id })} className="font-bold text-primary hover:underline">
-              Edit in builder
-            </Link>
-          </p>
-        )}
-      </section>
 
       {drafts.length === 0 ? (
         <section className={SECTION}>

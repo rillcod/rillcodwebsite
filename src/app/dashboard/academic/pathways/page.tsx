@@ -53,12 +53,14 @@ export default function AcademicPathwaysPage() {
     finally { setSaving(false); }
   }
 
-  return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8 mobile-page-root">
-    <section className="rounded-3xl border border-border bg-card p-6">
-      <Link href="/dashboard/academic" className="text-sm font-bold text-primary">Back to Academic Office</Link>
-      <h1 className="mt-3 text-3xl font-black text-foreground">Academic pathways</h1>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Enrollment type chooses the learner's world automatically. Regular School, Online School and every Special Programme own separate curriculum directions, calendars, delivery and results while sharing the same academic engine.</p>
-    </section>
+  return <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8 mobile-page-root">
+    <header className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <Link href="/dashboard/academic" className="text-xs font-black uppercase tracking-wider text-primary hover:underline">← Academic Office</Link>
+        <h1 className="mt-1.5 text-2xl font-black text-foreground">Academic pathways</h1>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">Regular School, Online School and Special Programmes keep separate curriculum directions, calendars, delivery and results on one shared academic engine.</p>
+      </div>
+    </header>
     {canCreatePathway && <details className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <summary className="cursor-pointer font-black text-foreground">Create an Online or Special pathway</summary>
       <p className="mt-2 text-sm text-muted-foreground">Open a separate academic route with its own timing, delivery, curriculum direction, results and certificates.</p>
