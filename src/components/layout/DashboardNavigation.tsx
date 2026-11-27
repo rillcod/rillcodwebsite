@@ -861,6 +861,11 @@ export default function DashboardNavigation() {
             icon: ShieldCheckIcon,
           },
           {
+            name: "Course Curriculum",
+            href: "/dashboard/academic/build",
+            icon: BookOpenIcon,
+          },
+          {
             name: "How It Works",
             href: "/dashboard/academic/guide",
             icon: DocumentTextIcon,
@@ -959,6 +964,11 @@ export default function DashboardNavigation() {
           },
 
           { divider: true, label: "Academic Progress" },
+          {
+            name: "Course Curriculum",
+            href: "/dashboard/academic/build",
+            icon: BookOpenIcon,
+          },
           {
             name: "Report Cards",
             href: "/dashboard/parent-results",

@@ -64,6 +64,7 @@ function calcAge(dob: string | null): string | null {
 }
 
 const QUICK_LINKS = (id: string) => [
+  { label: 'Curriculum',    href: '/dashboard/academic/build',                    icon: AcademicCapIcon,           color: 'bg-primary/20 text-primary', hover: 'group-hover/link:bg-primary/30' },
   { label: 'Report Cards',  href: `/dashboard/parent-results?student=${id}`,      icon: DocumentChartBarIcon,      color: 'bg-primary/20 text-primary', hover: 'group-hover/link:bg-primary/30' },
   { label: 'Attendance',    href: `/dashboard/parent-attendance?student=${id}`,   icon: ClipboardDocumentCheckIcon, color: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', hover: 'group-hover/link:bg-emerald-500/30' },
   { label: 'Grades',        href: `/dashboard/parent-grades?student=${id}`,       icon: ClipboardDocumentListIcon,  color: 'bg-primary/20 text-primary', hover: 'group-hover/link:bg-primary/30' },

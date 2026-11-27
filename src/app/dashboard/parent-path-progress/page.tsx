@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { LearningPathCard } from '@/components/progression/LearningPathCard';
 import { fetchJsonWithTimeout } from '@/lib/async-timeout';
+import { BookOpenIcon } from '@/lib/icons';
 
 type ChildOption = { id: string; full_name: string; user_id: string | null };
 type PathItem = {
@@ -74,13 +76,25 @@ export default function ParentPathProgressPage() {
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4 mobile-page-root">
       <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
-        <h1 className="text-xl font-black">Child Learning Path</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Same path visibility as student view, updated as teachers progress lessons week by week.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-xl font-black">Child Learning Path</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Same path visibility as student view, updated as teachers progress lessons week by week.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/academic/build"
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground hover:opacity-90"
+          >
+            <BookOpenIcon className="h-4 w-4" />
+            Full Curriculum &amp; School Calendar
+          </Link>
+        </div>
         {children.length > 0 && (
           <div className="mt-3">
             <select
+              aria-label="Select child"
               value={selectedChildId}
               onChange={(e) => {
                 setSelectedChildId(e.target.value);

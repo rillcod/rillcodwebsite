@@ -592,81 +592,198 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const courseId = url.searchParams.get("course_id");
+  const admin = adminClient();
 
-  // ─── Learner scope: build an allow-list of course_ids ───
-  // Student → their enrolments. Parent → their children's enrolments.
-  // If no enrolment records exist, fall back to school-scoped visible
-  // curricula (is_visible_to_school=true + profile.school_id) so learners
-  // can browse published syllabi even without a formal enrolment row.
+  // ─── Learner & School scope: resolve allowed school_ids and course_ids ───
+  // Students, parents, and partner schools should see BOTH:
+  //   1. School-visible syllabi (`is_visible_to_school = true`), AND
+  //   2. Official curricula adopted for their school or published by the Academic Office
+  //      (`academic_curriculum_adoptions` / `academic_curriculum_releases`).
   let learnerCourseIds: string[] | null = null;
   let learnerSchoolIds: string[] = [];
+
   if (role === "student") {
-    if (profile?.school_id) learnerSchoolIds = [profile.school_id];
-    const { data: progs } = await supabase
+    const { data: studentProfile } = await admin
+      .from("portal_users")
+      .select("school_id, class_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const sid = studentProfile?.school_id ?? profile?.school_id ?? null;
+    if (sid) learnerSchoolIds = [sid];
+
+    const courseSet = new Set<string>();
+    const { data: progs } = await admin
       .from("student_level_enrollments")
       .select("course_id")
       .eq("student_id", user.id);
-    const ids = Array.from(
-      new Set((progs ?? []).map((r) => r.course_id).filter(Boolean) as string[])
-    );
-    if (ids.length > 0) learnerCourseIds = ids;
-    // No enrollments → fall through to school-scoped query below
-  } else if (role === "parent") {
-    // Parents see curricula for courses their linked children are enrolled in.
-    // Use getParentLinkScope so both legacy parent_email matches AND explicit
-    // parent_student_links rows (created via consent-form portal) are included.
-    const adminForLinks = adminClient();
-    const { studentUserIds: childIds } = await getParentLinkScope(
-      adminForLinks,
-      {
-        id: user.id,
-        email: user.email,
+    for (const r of progs ?? []) {
+      if (r?.course_id) courseSet.add(String(r.course_id));
+    }
+
+    if (studentProfile?.class_id) {
+      const [{ data: cls }, { data: classPlans }] = await Promise.all([
+        admin
+          .from("classes")
+          .select("current_course_id, program_id, school_id")
+          .eq("id", studentProfile.class_id)
+          .maybeSingle(),
+        admin
+          .from("lesson_plans")
+          .select("course_id")
+          .eq("class_id", studentProfile.class_id),
+      ]);
+      if (cls?.school_id && !learnerSchoolIds.includes(cls.school_id)) {
+        learnerSchoolIds.push(cls.school_id);
       }
-    );
+      if (cls?.current_course_id) courseSet.add(String(cls.current_course_id));
+      for (const p of classPlans ?? []) {
+        if (p?.course_id) courseSet.add(String(p.course_id));
+      }
+      if (cls?.program_id) {
+        const { data: progCourses } = await admin
+          .from("courses")
+          .select("id")
+          .eq("program_id", cls.program_id)
+          .eq("is_active", true);
+        for (const c of progCourses ?? []) {
+          if (c?.id) courseSet.add(String(c.id));
+        }
+      }
+    }
+
+    if (learnerSchoolIds.length > 0) {
+      const { data: schoolAdoptions } = await admin
+        .from("academic_curriculum_adoptions")
+        .select("course_id")
+        .in("school_id", learnerSchoolIds)
+        .eq("status", "active");
+      for (const a of schoolAdoptions ?? []) {
+        if (a?.course_id) courseSet.add(String(a.course_id));
+      }
+    }
+
+    if (courseSet.size > 0) learnerCourseIds = Array.from(courseSet);
+  } else if (role === "parent") {
+    const { studentUserIds: childIds } = await getParentLinkScope(admin, {
+      id: user.id,
+      email: user.email,
+    });
     if (childIds.length > 0) {
-      const { data: children } = await adminForLinks
+      const { data: children } = await admin
         .from("portal_users")
-        .select("school_id")
+        .select("school_id, class_id")
         .in("id", childIds);
       learnerSchoolIds = Array.from(
         new Set(
           (children ?? []).map((row: any) => row.school_id).filter(Boolean)
         )
       );
-      const { data: progs } = await supabase
+      const childClassIds = Array.from(
+        new Set(
+          (children ?? []).map((row: any) => row.class_id).filter(Boolean)
+        )
+      ) as string[];
+
+      const courseSet = new Set<string>();
+      const { data: progs } = await admin
         .from("student_level_enrollments")
         .select("course_id")
         .in("student_id", childIds);
-      const ids = Array.from(
-        new Set(
-          (progs ?? []).map((r) => r.course_id).filter(Boolean) as string[]
-        )
-      );
-      if (ids.length > 0) learnerCourseIds = ids;
+      for (const r of progs ?? []) {
+        if (r?.course_id) courseSet.add(String(r.course_id));
+      }
+
+      if (childClassIds.length > 0) {
+        const [{ data: childClasses }, { data: childPlans }] = await Promise.all([
+          admin
+            .from("classes")
+            .select("current_course_id, program_id, school_id")
+            .in("id", childClassIds),
+          admin
+            .from("lesson_plans")
+            .select("course_id")
+            .in("class_id", childClassIds),
+        ]);
+        const programIds = new Set<string>();
+        for (const cls of childClasses ?? []) {
+          if (cls?.school_id && !learnerSchoolIds.includes(cls.school_id)) {
+            learnerSchoolIds.push(cls.school_id);
+          }
+          if (cls?.current_course_id) courseSet.add(String(cls.current_course_id));
+          if (cls?.program_id) programIds.add(String(cls.program_id));
+        }
+        for (const p of childPlans ?? []) {
+          if (p?.course_id) courseSet.add(String(p.course_id));
+        }
+        if (programIds.size > 0) {
+          const { data: progCourses } = await admin
+            .from("courses")
+            .select("id")
+            .in("program_id", Array.from(programIds))
+            .eq("is_active", true);
+          for (const c of progCourses ?? []) {
+            if (c?.id) courseSet.add(String(c.id));
+          }
+        }
+      }
+
+      if (learnerSchoolIds.length > 0) {
+        const { data: schoolAdoptions } = await admin
+          .from("academic_curriculum_adoptions")
+          .select("course_id")
+          .in("school_id", learnerSchoolIds)
+          .eq("status", "active");
+        for (const a of schoolAdoptions ?? []) {
+          if (a?.course_id) courseSet.add(String(a.course_id));
+        }
+      }
+
+      if (courseSet.size > 0) learnerCourseIds = Array.from(courseSet);
     }
-    // No linked children or no enrollments → fall through to school-scoped query below
+  } else if (role === "school" && profile?.school_id) {
+    learnerSchoolIds = [profile.school_id];
   }
 
-  // Use admin client to bypass RLS for course_curricula reads.
-  // The school role has no RLS policy on this table, so cookie-auth returns 0 rows
-  // even for is_visible_to_school=true rows. Role-based WHERE filters below enforce scope.
-  const admin = adminClient();
+  // Resolve published/adopted official curriculum source IDs so schools, students,
+  // and parents receive the official Academic Office curricula assigned to their school
+  // even when the master draft row itself has `is_visible_to_school = false`.
+  let approvedSourceCurriculumIds: string[] = [];
+  if (role === "school" || role === "student" || role === "parent") {
+    const releaseIds = new Set<string>();
+    if (learnerSchoolIds.length > 0) {
+      const { data: adoptions } = await admin
+        .from("academic_curriculum_adoptions")
+        .select("release_id")
+        .in("school_id", learnerSchoolIds)
+        .eq("status", "active");
+      for (const a of adoptions ?? []) {
+        if (a?.release_id) releaseIds.add(String(a.release_id));
+      }
+    }
+    let relQuery = admin
+      .from("academic_curriculum_releases")
+      .select("id, source_curriculum_id, status")
+      .eq("status", "published");
+    if (courseId) relQuery = relQuery.eq("course_id", courseId);
+    const { data: publishedReleases } = await relQuery;
+    const sourceIds = new Set<string>();
+    for (const rel of publishedReleases ?? []) {
+      if (!rel?.source_curriculum_id) continue;
+      // Include all published platform releases (or explicitly adopted ones)
+      if (releaseIds.size === 0 || releaseIds.has(String(rel.id)) || rel.status === "published") {
+        sourceIds.add(String(rel.source_curriculum_id));
+      }
+    }
+    approvedSourceCurriculumIds = Array.from(sourceIds);
+  }
+
   let query = admin
     .from("course_curricula")
-    // Editions come along too: without them the roster cannot tell a draft from a published
-    // curriculum, so a freshly generated one looked identical to a live one and nobody could
-    // see whether schools were actually teaching from it.
     .select(
       "*, courses!course_id(title), portal_users!course_curricula_created_by_fkey(full_name), schools(id, name), academic_curriculum_releases!source_curriculum_id(id, status, academic_session)"
     )
     .order("created_at", { ascending: false });
-
-  // Schools, students and parents respect the teacher-controlled
-  // `is_visible_to_school` gate — teachers decide when the term's
-  // syllabus is ready to share with the school & families.
-  if (role !== "admin" && role !== "teacher") {
-    query = query.eq("is_visible_to_school", true);
-  }
 
   if (role === "teacher") {
     const sids = await getTeacherSchoolIds(user.id, profile?.school_id ?? null);
@@ -675,35 +792,54 @@ export async function GET(req: NextRequest) {
     } else {
       query = query.is("school_id", null);
     }
-  }
-
-  if (role === "school") {
+  } else if (role === "school") {
     if (profile?.school_id) {
       query = query.or(`school_id.is.null,school_id.eq.${profile.school_id}`);
     } else {
       query = query.is("school_id", null);
     }
-  }
-
-  if (role === "student" || role === "parent") {
+  } else if (role === "student" || role === "parent") {
     if (learnerCourseIds && learnerCourseIds.length > 0) {
       query = query.in("course_id", learnerCourseIds);
-      const schoolFilters = [
-        "school_id.is.null",
-        ...learnerSchoolIds.map((sid) => `school_id.eq.${sid}`),
-      ];
-      query = query.or(schoolFilters.join(",")) as typeof query;
-    } else if (profile?.school_id) {
-      // No enrollments: scope to their school's published curricula
-      query = query.or(`school_id.is.null,school_id.eq.${profile.school_id}`);
     }
+    const schoolFilters = [
+      "school_id.is.null",
+      ...learnerSchoolIds.map((sid) => `school_id.eq.${sid}`),
+    ];
+    query = query.or(schoolFilters.join(",")) as typeof query;
   }
 
   if (courseId) query = query.eq("course_id", courseId);
 
-  const { data, error } = await query;
+  const { data: rawRows, error } = await query;
   if (error)
     return NextResponse.json({ error: error.message }, { status: 500 });
+
+  let data = rawRows ?? [];
+  if (role === "school" || role === "student" || role === "parent") {
+    const approvedSet = new Set(approvedSourceCurriculumIds);
+    data = data.filter((row: any) => {
+      if (row.is_visible_to_school === true) return true;
+      if (approvedSet.has(String(row.id))) return true;
+      const releases = Array.isArray(row.academic_curriculum_releases)
+        ? row.academic_curriculum_releases
+        : row.academic_curriculum_releases
+          ? [row.academic_curriculum_releases]
+          : [];
+      return releases.some((r: any) => r?.status === "published");
+    });
+  }
+
+  if (role === "student" || role === "parent") {
+    const { sanitizeCurriculumForLearner } = await import(
+      "@/lib/curriculum/school-calendar-alignment"
+    );
+    data = data.map((row: any) => ({
+      ...row,
+      content: sanitizeCurriculumForLearner(row.content),
+    }));
+  }
+
   return NextResponse.json({ data });
 }
 

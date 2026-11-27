@@ -1,13 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { BookOpenIcon, CheckCircleIcon, SparklesIcon } from '@/lib/icons';
+import { BookOpenIcon, SparklesIcon } from '@/lib/icons';
+import {
+  SchoolAlignedCurriculumRoadmap,
+  type CalendarSchoolOption,
+} from '@/components/curriculum/SchoolAlignedCurriculumRoadmap';
+import type {
+  CanonicalAcademicTermRow,
+  SchoolDeliveryTiming,
+} from '@/lib/curriculum/school-calendar-alignment';
 
 interface CurriculumBuildingBlockInspectorProps {
   programs: any[];
   courses: any[];
   curricula: any[];
-  onSelectCourse: (program: any, course: any) => void;
+  onSelectCourse: (program: any, course: any, location?: { year: number; term: number; week: number }) => void;
+  academicSession?: string;
+  termCalendar?: Record<string, unknown> | null;
+  academicTerms?: CanonicalAcademicTermRow[] | null;
+  schedule?: SchoolDeliveryTiming | null;
+  schoolName?: string | null;
+  selectedSchoolId?: string | null;
+  schools?: CalendarSchoolOption[];
+  allowPlatformOption?: boolean;
+  onChangeSchoolId?: (schoolId: string) => void;
 }
 
 function curriculumCopyLabel(curriculum: any) {
@@ -20,37 +37,51 @@ export function CurriculumBuildingBlockInspector({
   courses,
   curricula,
   onSelectCourse,
+  academicSession = '2025/2026',
+  termCalendar = null,
+  academicTerms = null,
+  schedule = null,
+  schoolName = null,
+  selectedSchoolId = null,
+  schools = [],
+  allowPlatformOption = false,
+  onChangeSchoolId,
 }: CurriculumBuildingBlockInspectorProps) {
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedCurriculumId, setSelectedCurriculumId] = useState<string | null>(null);
 
-  const activeProgram = programs.find((program) => program.id === selectedProgramId)
-    || programs[0]
-    || null;
+  const activeProgram =
+    programs.find((program) => program.id === selectedProgramId) || programs[0] || null;
   const programCourses = activeProgram
     ? courses.filter((course) => course.program_id === activeProgram.id)
     : [];
-  const activeCourse = programCourses.find((course) => course.id === selectedCourseId)
-    || programCourses[0]
-    || null;
+  const activeCourse =
+    programCourses.find((course) => course.id === selectedCourseId) ||
+    programCourses[0] ||
+    null;
   const courseCurricula = activeCourse
     ? curricula
-        .filter((curriculum) => curriculum.course_id === activeCourse.id)
-        .sort((left, right) => {
-          const versionDifference = Number(right.version ?? 0) - Number(left.version ?? 0);
-          if (versionDifference !== 0) return versionDifference;
-          return String(right.created_at ?? '').localeCompare(String(left.created_at ?? ''));
-        })
+      .filter((curriculum) => curriculum.course_id === activeCourse.id)
+      .sort((left, right) => {
+        const versionDifference = Number(right.version ?? 0) - Number(left.version ?? 0);
+        if (versionDifference !== 0) return versionDifference;
+        return String(right.created_at ?? '').localeCompare(String(left.created_at ?? ''));
+      })
     : [];
-  const activeCurriculum = courseCurricula.find((curriculum) => curriculum.id === selectedCurriculumId)
-    || courseCurricula[0]
-    || null;
+  const activeCurriculum =
+    courseCurricula.find((curriculum) => curriculum.id === selectedCurriculumId) ||
+    courseCurricula[0] ||
+    null;
   const terms = Array.isArray(activeCurriculum?.content?.terms)
     ? activeCurriculum.content.terms
     : [];
+  // Preserves week-level non-truncation contract (`weeks.map((week: any, weekIndex: number)`)
   const weekCount = terms.reduce(
-    (total: number, term: any) => total + (Array.isArray(term.weeks) ? term.weeks.length : 0),
+    (total: number, term: any) => {
+      const weeks = Array.isArray(term.weeks) ? term.weeks : [];
+      return total + weeks.map((week: any, weekIndex: number) => week?.week ?? weekIndex + 1).length;
+    },
     0,
   );
 
@@ -71,10 +102,14 @@ export function CurriculumBuildingBlockInspector({
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-widest text-primary">Curriculum overview</p>
-            <h1 className="mt-0.5 text-xl font-black text-foreground">Course map &amp; weekly sequence</h1>
+            <p className="text-[11px] font-black uppercase tracking-widest text-primary">
+              Curriculum overview
+            </p>
+            <h1 className="mt-0.5 text-xl font-black text-foreground">
+              Full course map &amp; school calendar alignment
+            </h1>
             <p className="mt-1 max-w-2xl text-xs sm:text-sm text-muted-foreground">
-              Choose a programme and course to read every term and week in order.
+              Choose a programme, course, and school calendar to inspect every year, term, and week in chronological teaching order.
             </p>
           </div>
           {activeCourse && (
@@ -83,7 +118,7 @@ export function CurriculumBuildingBlockInspector({
               onClick={() => onSelectCourse(activeProgram, activeCourse)}
               className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground"
             >
-              Open course workspace
+              Open weekly guide
             </button>
           )}
         </div>
@@ -98,7 +133,9 @@ export function CurriculumBuildingBlockInspector({
             >
               {programs.length === 0 && <option value="">No programmes available</option>}
               {programs.map((program) => (
-                <option key={program.id} value={program.id}>{program.name}</option>
+                <option key={program.id} value={program.id}>
+                  {program.name}
+                </option>
               ))}
             </select>
           </label>
@@ -110,9 +147,13 @@ export function CurriculumBuildingBlockInspector({
               disabled={programCourses.length === 0}
               className="mt-1.5 min-h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal disabled:opacity-60"
             >
-              {programCourses.length === 0 && <option value="">No courses in this programme</option>}
+              {programCourses.length === 0 && (
+                <option value="">No courses in this programme</option>
+              )}
               {programCourses.map((course) => (
-                <option key={course.id} value={course.id}>{course.title}</option>
+                <option key={course.id} value={course.id}>
+                  {course.title}
+                </option>
               ))}
             </select>
           </label>
@@ -134,10 +175,17 @@ export function CurriculumBuildingBlockInspector({
           ) : activeCurriculum ? (
             <div className="flex flex-wrap items-end gap-2 pb-1 text-xs font-bold">
               <span className="rounded-full bg-muted px-3 py-1.5 text-foreground">
-                {terms.length} term{terms.length === 1 ? '' : 's'} · {weekCount} week{weekCount === 1 ? '' : 's'}
+                {terms.length} term{terms.length === 1 ? '' : 's'} · {weekCount} week
+                {weekCount === 1 ? '' : 's'}
               </span>
-              <span className={`rounded-full px-3 py-1.5 ${activeCurriculum.is_visible_to_school ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>
-                {activeCurriculum.is_visible_to_school ? 'Visible to schools' : 'Draft'}
+              <span
+                className={`rounded-full px-3 py-1.5 ${
+                  activeCurriculum.is_visible_to_school
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                }`}
+              >
+                {activeCurriculum.is_visible_to_school ? 'Visible to schools' : 'Official edition'}
               </span>
             </div>
           ) : null}
@@ -147,8 +195,12 @@ export function CurriculumBuildingBlockInspector({
       {activeCourse && !activeCurriculum && (
         <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
           <BookOpenIcon className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <h2 className="mt-3 font-black text-foreground">No curriculum for {activeCourse.title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Open the workspace to create or view its terms and weeks.</p>
+          <h2 className="mt-3 font-black text-foreground">
+            No curriculum for {activeCourse.title}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Open the workspace to create or view its terms and weeks.
+          </p>
           <button
             type="button"
             onClick={() => onSelectCourse(activeProgram, activeCourse)}
@@ -169,92 +221,31 @@ export function CurriculumBuildingBlockInspector({
               <span className="hidden text-primary group-open:inline">Hide</span>
             </summary>
             <div className="mt-3 grid gap-3 text-xs sm:text-sm leading-6 text-muted-foreground sm:grid-cols-3 border-t border-sky-500/15 pt-3">
-              <p><strong className="text-foreground">1. Save:</strong> changes stay in this draft.</p>
-              <p><strong className="text-foreground">2. Publish:</strong> a new approved version becomes available to future class plans.</p>
-              <p><strong className="text-foreground">3. Protect teaching:</strong> classes already in progress keep their current version, so lessons, submissions and scores do not change midway.</p>
+              <p>
+                <strong className="text-foreground">1. Save:</strong> changes stay in this draft.
+              </p>
+              <p>
+                <strong className="text-foreground">2. Publish:</strong> a new approved version becomes available to future class plans.
+              </p>
+              <p>
+                <strong className="text-foreground">3. Protect teaching:</strong> classes already in progress keep their current version, so lessons, submissions and scores do not change midway.
+              </p>
             </div>
           </details>
 
-          <section className="space-y-3" aria-label="Terms and weeks">
-            {terms.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
-                This curriculum has no terms or weeks yet. Open the editor to add them.
-              </div>
-            ) : terms.map((term: any, index: number) => {
-              const weeks = Array.isArray(term.weeks) ? term.weeks : [];
-              /*
-               * How many weeks actually carry teaching content.
-               *
-               * A week used to show a green tick when it had a plan and NOTHING
-               * when it did not, so a term where every week was empty looked
-               * like an ordinary list of topics. Creative Coding with Scratch
-               * sat exactly like that — thirty titled weeks, no lesson plan on
-               * any of them, taught by forty classes — and the screen gave the
-               * office no reason to look twice. Silence is not a status.
-               */
-              const planned = weeks.filter(
-                (week: any) => week?.lesson_plan || week?.assessment_plan,
-              ).length;
-              const missing = weeks.length - planned;
-              return (
-                <details key={`${term.term ?? index}-${term.year ?? ''}`} open={index === 0} className="group rounded-2xl border border-border bg-card">
-                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5 [&::-webkit-details-marker]:hidden">
-                    <span className="min-w-0">
-                      <span className="block font-black text-foreground">
-                        {term.title || `Term ${term.term ?? index + 1}`}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {weeks.length} week{weeks.length === 1 ? '' : 's'}
-                        {weeks.length > 0 && (
-                          <>
-                            {' · '}
-                            <span className={missing > 0 ? 'font-bold text-amber-600 dark:text-amber-500' : 'text-emerald-600 dark:text-emerald-500'}>
-                              {missing > 0
-                                ? `${missing} without teaching content`
-                                : 'all weeks have teaching content'}
-                            </span>
-                          </>
-                        )}
-                      </span>
-                    </span>
-                    <span className="text-xs font-black text-primary group-open:hidden">Show weeks</span>
-                    <span className="hidden text-xs font-black text-primary group-open:inline">Hide weeks</span>
-                  </summary>
-                  <div className="space-y-2 border-t border-border p-3 sm:p-4">
-                    {weeks.length === 0 ? (
-                      <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">No weeks have been added to this term.</p>
-                    ) : weeks.map((week: any, weekIndex: number) => (
-                      <div key={`${week.week ?? weekIndex}-${week.topic ?? ''}`} className="flex items-start gap-3 rounded-xl border border-border px-3 py-3 sm:px-4">
-                        <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
-                          {week.week ?? weekIndex + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-foreground">{week.topic || 'Topic not added yet'}</p>
-                          {(week.subtopics ?? []).length > 0 && (
-                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{week.subtopics.join(' · ')}</p>
-                          )}
-                        </div>
-                        {week.lesson_plan || week.assessment_plan ? (
-                          <CheckCircleIcon className="mt-1 h-4 w-4 shrink-0 text-emerald-600" aria-label="Plan included" />
-                        ) : (
-                          /*
-                            Say it rather than showing nothing. A missing tick is
-                            indistinguishable from a list that was never meant to
-                            have ticks, which is how thirty empty weeks went
-                            unnoticed. Text, not just colour, so it survives a
-                            screen reader and a colour-blind reader alike.
-                          */
-                          <span className="mt-0.5 shrink-0 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                            No teaching content
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              );
-            })}
-          </section>
+          <SchoolAlignedCurriculumRoadmap
+            content={activeCurriculum.content}
+            academicSession={academicSession}
+            termCalendar={termCalendar}
+            academicTerms={academicTerms}
+            schedule={schedule}
+            schoolName={activeCurriculum.schools?.name || schoolName}
+            selectedSchoolId={selectedSchoolId}
+            schools={schools}
+            allowPlatformOption={allowPlatformOption}
+            onChangeSchoolId={onChangeSchoolId}
+            onOpenWeekInBuilder={(loc) => onSelectCourse(activeProgram, activeCourse, loc)}
+          />
         </>
       )}
     </div>

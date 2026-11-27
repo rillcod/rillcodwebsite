@@ -22,6 +22,8 @@ export function buildCurriculumHref(
     year?: number | null;
     term?: number | null;
     week?: number | null;
+    schoolId?: string | null;
+    view?: string | null;
   } = {}
 ): string {
   return withQuery(BUILDER_PATH, {
@@ -30,6 +32,8 @@ export function buildCurriculumHref(
     year: args.year,
     term: args.term,
     week: args.week,
+    school_id: args.schoolId,
+    view: args.view,
   });
 }
 

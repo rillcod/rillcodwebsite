@@ -349,6 +349,11 @@ export default function StudentLearningPage() {
                     <ArrowRightIcon className="w-3.5 h-3.5 shrink-0" />
                   </Link>
                 )}
+                <Link href="/dashboard/academic/build"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 px-4 py-2.5 text-xs font-black text-primary transition-colors">
+                  <BookOpenIcon className="w-4 h-4 shrink-0" />
+                  Full Curriculum &amp; Calendar
+                </Link>
                 <Link href="/dashboard/cbt"
                   className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-background hover:border-primary/40 px-4 py-2.5 text-xs font-black text-foreground transition-colors">
                   <AcademicCapIcon className="w-4 h-4 text-primary shrink-0" />

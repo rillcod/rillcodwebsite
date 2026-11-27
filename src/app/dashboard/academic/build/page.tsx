@@ -57,6 +57,16 @@ import {
 } from "@/components/curriculum/SyllabusPreview";
 import { MasterCurriculumRoster } from "@/components/curriculum/MasterCurriculumRoster";
 import { CurriculumBuildingBlockInspector } from "@/components/curriculum/CurriculumBuildingBlockInspector";
+import {
+  SchoolAlignedCurriculumRoadmap,
+  type CalendarChildOption,
+  type CalendarSchoolOption,
+} from "@/components/curriculum/SchoolAlignedCurriculumRoadmap";
+import {
+  normalizeSchoolTermCalendar,
+  type CanonicalAcademicTermRow,
+  type SchoolDeliveryTiming,
+} from "@/lib/curriculum/school-calendar-alignment";
 import { CurriculumPrintDoc } from "@/components/curriculum/CurriculumPrintDoc";
 import {
   CurriculumOverviewPrintDoc,
@@ -117,15 +127,16 @@ function termDatesNg(
 }
 
 // Merges saved term calendar (from settings) with Nigerian defaults.
-// Saved dates take precedence; missing fields fall back to defaults.
+// Handles BOTH `{ term1: { start, end } }` AND `{ "1": { start, end } }` shapes!
 function resolveTermDates(
   term: string | number,
   academicYear: string,
-  calendar: Record<string, { start?: string; end?: string }> | null | undefined
+  calendar: Record<string, { start?: string; end?: string } | any> | null | undefined
 ): { start: string; end: string } | null {
   const ng = termDatesNg(String(term), academicYear);
-  if (!calendar) return ng;
-  const saved = calendar[String(term)];
+  const normalized = normalizeSchoolTermCalendar(calendar as Record<string, unknown> | null | undefined);
+  if (!normalized) return ng;
+  const saved = normalized[String(term) as "1" | "2" | "3"];
   if (!saved) return ng;
   return {
     start: saved.start || ng?.start || "",
@@ -770,16 +781,95 @@ export default function CurriculumPage() {
     ((courseId: string, hintPst?: number) => Promise<void>) | null
   >(null);
 
-  // Programme start term: curriculum metadata ONLY — never read programme policy here.
-  // Programme policy PST is per-programme and breaks multi-school setups where each school
-  // has its own start term stored in their school-specific curriculum metadata.
+  // Per-school calendar & timing alignment (Admin / multi-school Teacher switcher,
+  // Partner School, Student, and Parent child-scoped school calendar).
+  const [selectedCalendarSchoolId, setSelectedCalendarSchoolId] = useState<string>(
+    () => searchParams.get("school_id") || ""
+  );
+  const [selectedChildId, setSelectedChildId] = useState<string>("");
+  const [learnerViewTab, setLearnerViewTab] = useState<"roadmap" | "term">("roadmap");
+  const [calendarContext, setCalendarContext] = useState<{
+    schools: CalendarSchoolOption[];
+    children: CalendarChildOption[];
+    selectedSchoolId: string | null;
+    selectedSchoolName: string | null;
+    academicSession: string;
+    termCalendar: Record<string, unknown> | null;
+    academicTerms: CanonicalAcademicTermRow[];
+    schedule: SchoolDeliveryTiming | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("view") === "roadmap") {
+      setCurriculumViewMode("inspector");
+    }
+    const qsSchool = searchParams.get("school_id");
+    if (qsSchool) {
+      setSelectedCalendarSchoolId(qsSchool);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!profile) return;
+    let cancelled = false;
+    const params = new URLSearchParams();
+    if (selectedCalendarSchoolId) params.set("school_id", selectedCalendarSchoolId);
+    if (selectedChildId) params.set("child_id", selectedChildId);
+    if (selectedCourse?.id) params.set("course_id", selectedCourse.id);
+    fetch(`/api/curricula/school-calendar?${params.toString()}`, {
+      cache: "no-store",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json?.data) return;
+        const d = json.data;
+        setCalendarContext({
+          schools: d.schools ?? [],
+          children: d.children ?? [],
+          selectedSchoolId: d.selectedSchoolId ?? null,
+          selectedSchoolName: d.selectedSchoolName ?? null,
+          academicSession: d.academicSession || academicYear,
+          termCalendar: d.termCalendar ?? null,
+          academicTerms: d.academicTerms ?? [],
+          schedule: d.schedule ?? null,
+        });
+        if (!selectedChildId && Array.isArray(d.children) && d.children[0]?.id) {
+          setSelectedChildId(d.children[0].id);
+        }
+      })
+      .catch(() => {
+        /* fallback to AcademicYearContext */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    profile,
+    selectedCalendarSchoolId,
+    selectedChildId,
+    selectedCourse?.id,
+    academicYear,
+  ]);
+
+  const effectiveSchoolAcademicYear =
+    calendarContext?.academicSession || academicYear;
+  const effectiveSchoolTermCalendar =
+    (calendarContext?.termCalendar as any) || termCalendar;
+
+  // Programme start term: uses the active school's delivery schedule entryTerm when
+  // viewing a specific school's calendar, otherwise curriculum metadata PST.
   const effectiveProgramStartTerm = useMemo(() => {
+    const schedEntry = Number(calendarContext?.schedule?.entryTerm ?? 0);
+    if ([1, 2, 3].includes(schedEntry)) return schedEntry as 1 | 2 | 3;
     const contentPst = curriculum?.content?.metadata?.program_start_term;
     return ([1, 2, 3].includes(Number(contentPst)) ? Number(contentPst) : 1) as
       | 1
       | 2
       | 3;
-  }, [curriculum?.content?.metadata?.program_start_term]);
+  }, [
+    calendarContext?.schedule?.entryTerm,
+    curriculum?.content?.metadata?.program_start_term,
+  ]);
 
   const isAdmin = profile?.role === "admin";
   const isTeacher = profile?.role === "teacher";
@@ -804,7 +894,7 @@ export default function CurriculumPage() {
   const viewMode: "roster" | "inspector" | "builder" = curriculumViewMode;
 
   useEffect(() => {
-    if (!selectedCourse || learnerMode || isSchool) return;
+    if (!selectedCourse || learnerMode) return;
     let cancelled = false;
     setOfficialStatus((s) => ({ ...s, loading: true }));
     fetch(`/api/curricula/official-status?course_id=${selectedCourse.id}`)
@@ -3663,22 +3753,29 @@ export default function CurriculumPage() {
   // whether numbering restarts each term or runs straight through the year.
   const currentWeekEntry = useMemo(() => {
     if (!todayLocal || isCohortFormat) return null;
+    const entryWeekShift = Math.max(
+      0,
+      Math.trunc(Number(calendarContext?.schedule?.entryWeek ?? 1) || 1) - 1
+    );
     for (const term of orderedTerms) {
       const termAcYear = effectiveAcademicYearForTerm(
         term.term,
         effectiveProgramStartTerm,
-        academicYear
+        effectiveSchoolAcademicYear
       );
       const week1Mon = termWeekOneMonday(
         term.term,
         termAcYear,
         term.start_date ??
-          resolveTermDates(term.term, termAcYear, termCalendar)?.start
+          resolveTermDates(term.term, termAcYear, effectiveSchoolTermCalendar)
+            ?.start
       );
       if (!week1Mon) continue;
-      const elapsedWeeks = Math.floor(
-        (todayLocal.getTime() - week1Mon.getTime()) / (7 * 24 * 60 * 60 * 1000)
-      );
+      const isEntryTerm = term.term === effectiveProgramStartTerm;
+      const elapsedWeeks =
+        Math.floor(
+          (todayLocal.getTime() - week1Mon.getTime()) / (7 * 24 * 60 * 60 * 1000)
+        ) - (isEntryTerm ? entryWeekShift : 0);
       if (elapsedWeeks < 0) continue;
       const match = orderedWeeks.find(
         (e) => e.term === term.term && e.indexInTerm === elapsedWeeks
@@ -3692,8 +3789,9 @@ export default function CurriculumPage() {
     orderedTerms,
     orderedWeeks,
     effectiveProgramStartTerm,
-    academicYear,
-    termCalendar,
+    effectiveSchoolAcademicYear,
+    effectiveSchoolTermCalendar,
+    calendarContext?.schedule?.entryWeek,
   ]);
 
   // Step to any week in the year, switching term underneath when the step
@@ -3770,20 +3868,65 @@ export default function CurriculumPage() {
     );
   }
 
-  // ── Learner / School read-only layout ───────────────────────────────────
-  if (learnerMode || isSchool) {
+  // ── Learner (Student & Parent) full-scope calendar-aligned layout ───────
+  if (learnerMode) {
     return (
       <div className="flex flex-col bg-background text-foreground mobile-page-root">
         <div className="shrink-0 border-b border-border bg-card px-4 py-3">
-          <p className="text-sm font-black text-foreground">Curriculum</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {selectedCourse
-              ? selectedCourse.title
-              : "Select a course to view"}
-          </p>
+          <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-foreground">
+                {isParent ? "Child Course Curriculum & School Calendar" : "My Course Curriculum & School Calendar"}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                {selectedCourse
+                  ? `${selectedCourse.title}${calendarContext?.selectedSchoolName ? ` · ${calendarContext.selectedSchoolName}` : ""}`
+                  : "Select a course to view its full multi-term curriculum"}
+              </p>
+            </div>
+
+            {selectedCourse && curriculum && (
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-background p-1">
+                  <button
+                    type="button"
+                    onClick={() => setLearnerViewTab("roadmap")}
+                    className={`px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-lg transition-colors ${
+                      learnerViewTab === "roadmap"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Full Calendar Scope
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLearnerViewTab("term")}
+                    className={`px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-lg transition-colors ${
+                      learnerViewTab === "term"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Term Focus
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={exportingPdf}
+                  onClick={() => void exportCurriculumPdf("overview")}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background hover:bg-muted px-3 py-1.5 text-xs font-bold text-foreground disabled:opacity-50"
+                >
+                  <ArrowDownTrayIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                  {exportingPdf ? "Exporting…" : "Download PDF"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
+        <div className="flex-1 px-4 py-5 max-w-5xl mx-auto w-full">
           {!selectedCourse ? (
             <div className="space-y-4">
               {programs.length === 0 ? (
@@ -3805,7 +3948,7 @@ export default function CurriculumPage() {
                         key={course.id}
                         type="button"
                         onClick={() => selectCourse(prog, course)}
-                        className="text-left border border-border bg-card hover:border-primary/40 hover:bg-muted/20 p-4 space-y-1.5 transition-colors"
+                        className="text-left rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-muted/20 p-4 space-y-1.5 transition-colors"
                       >
                         <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">
                           {prog.name}
@@ -3813,8 +3956,8 @@ export default function CurriculumPage() {
                         <p className="text-sm font-bold text-foreground line-clamp-2">
                           {course.title}
                         </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">
-                          View curriculum →
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                          Open full curriculum →
                         </p>
                       </button>
                     ))}
@@ -3831,7 +3974,7 @@ export default function CurriculumPage() {
               <p className="text-sm text-rose-600 dark:text-rose-400">{loadError}</p>
               <button
                 onClick={() => setSelectedCourse(null)}
-                className="text-xs text-muted-foreground border border-border px-3 py-1.5 hover:bg-muted/30"
+                className="text-xs text-muted-foreground rounded-xl border border-border px-3 py-1.5 hover:bg-muted/30"
               >
                 ← Back to courses
               </button>
@@ -3842,65 +3985,138 @@ export default function CurriculumPage() {
               <div>
                 <p className="font-bold text-sm">{selectedCourse.title}</p>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Curriculum not available yet - check back soon.
+                  Curriculum not available yet — check back soon.
                 </p>
               </div>
               <button
                 onClick={() => setSelectedCourse(null)}
-                className="text-xs text-primary border border-primary/30 px-3 py-1.5 hover:bg-primary/10"
+                className="text-xs text-primary rounded-xl border border-primary/30 px-3 py-1.5 hover:bg-primary/10"
               >
                 ← Back to courses
               </button>
             </div>
           ) : (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedCourse(null);
-                    setCurriculum(null);
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  ← Courses
-                </button>
-                <span className="text-muted-foreground/40">›</span>
-                <span className="text-xs font-bold text-primary">
-                  {selectedCourse.title}
-                </span>
-                {yearsAvailable.length > 1 && (
-                  <>
-                    <span className="text-muted-foreground/40">›</span>
-                    <div className="flex gap-1">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {quickChooserCourses.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCourse(null);
+                          setCurriculum(null);
+                        }}
+                        className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        ← All courses ({quickChooserCourses.length})
+                      </button>
+                      <span className="text-muted-foreground/40">›</span>
+                    </>
+                  )}
+                  <span className="text-sm font-black text-foreground">
+                    {curriculum.content.course_title || selectedCourse.title}
+                  </span>
+                </div>
+              </div>
+
+              {(curriculum.content.overview ||
+                (curriculum.content.learning_outcomes?.length ?? 0) > 0) && (
+                <details className="group rounded-2xl border border-border bg-card overflow-hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-black text-foreground hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
+                    <span>About this course &amp; what learners achieve</span>
+                    <span className="text-primary group-open:hidden">Show</span>
+                    <span className="hidden text-primary group-open:inline">Hide</span>
+                  </summary>
+                  <div className="border-t border-border p-4 space-y-3">
+                    {curriculum.content.overview && (
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                        {curriculum.content.overview}
+                      </p>
+                    )}
+                    {curriculum.content.learning_outcomes?.length > 0 && (
+                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs sm:text-sm">
+                        {curriculum.content.learning_outcomes.map((o, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+                            <span>{o}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </details>
+              )}
+
+              {learnerViewTab === "roadmap" ? (
+                <SchoolAlignedCurriculumRoadmap
+                  content={curriculum.content}
+                  academicSession={effectiveSchoolAcademicYear}
+                  termCalendar={effectiveSchoolTermCalendar}
+                  academicTerms={calendarContext?.academicTerms}
+                  schedule={calendarContext?.schedule}
+                  schoolName={
+                    curriculum.schools?.name || calendarContext?.selectedSchoolName
+                  }
+                  selectedSchoolId={calendarContext?.selectedSchoolId}
+                  childrenList={isParent ? calendarContext?.children : undefined}
+                  selectedChildId={selectedChildId}
+                  onChangeChildId={
+                    isParent
+                      ? (cid) => {
+                          setSelectedChildId(cid);
+                          const child = calendarContext?.children.find(
+                            (c) => c.id === cid
+                          );
+                          if (child?.current_course_id && child.current_course_id !== selectedCourse.id) {
+                            for (const p of programs) {
+                              const found = (p.courses ?? []).find(
+                                (x) => x.id === child.current_course_id
+                              );
+                              if (found) {
+                                selectCourse(p, found);
+                                break;
+                              }
+                            }
+                          }
+                        }
+                      : undefined
+                  }
+                  audienceIsLearner
+                />
+              ) : (
+                <div className="space-y-4">
+                  {yearsAvailable.length > 1 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {yearsAvailable.map((yr) => (
                         <button
                           key={yr}
                           type="button"
                           onClick={() => setActiveYear(yr)}
-                          className={`px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                          className={`rounded-lg px-3 py-1 text-xs font-bold transition-colors ${
                             activeYear === yr
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "border-border text-muted-foreground hover:border-primary/40"
+                              ? "bg-primary text-primary-foreground"
+                              : "border border-border bg-card text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           Year {yr}
                         </button>
                       ))}
                     </div>
-                  </>
-                )}
-              </div>
-              <SyllabusPreview
-                content={
-                  {
-                    ...curriculum.content,
-                    terms: termsForActiveYear,
-                  } as unknown as SyllabusContent
-                }
-                courseTitle={selectedCourse.title}
-                audienceIsLearner
-                hideCourseHeader={true}
-              />
+                  )}
+                  <SyllabusPreview
+                    content={
+                      {
+                        ...curriculum.content,
+                        terms: termsForActiveYear,
+                      } as unknown as SyllabusContent
+                    }
+                    courseTitle={selectedCourse.title}
+                    audienceIsLearner
+                    hideCourseHeader={true}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -3908,7 +4124,7 @@ export default function CurriculumPage() {
     );
   }
 
-  // ── Render (staff: teacher / admin) ─────────────────────────────────────
+  // ── Render (staff: admin / teacher / partner school) ────────────────────
   return (
     <>
       {/* Official print documents — hidden in UI, revealed only by window.print() */}
@@ -4054,7 +4270,7 @@ export default function CurriculumPage() {
           is the only scrollport (PWA + browser). Nested overflow-y-auto + min-h-screen
           traps touch scroll and hides the page under sticky chrome. */}
       <div className="flex flex-col bg-background text-foreground print:hidden mobile-page-root md:min-h-0">
-        {/* Single compact workspace bar — works cleanly for both Teachers (Weekly Guide) and Admins (Builder) */}
+        {/* Single compact workspace bar — works cleanly for Teachers, Partner Schools, and Admins */}
         <div className="shrink-0 border-b border-border bg-card z-20">
           <div className="px-4 py-2 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-2 md:gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -4064,12 +4280,51 @@ export default function CurriculumPage() {
               <span className="hidden lg:inline text-muted-foreground/40">·</span>
               <p className="hidden text-xs text-muted-foreground lg:block truncate">
                 {isCurriculumReader
-                  ? "Browse weekly topics and lesson guides, then deliver from My Classes."
+                  ? "Browse weekly guides or full school-calendar alignment, then deliver from Classes."
                   : "Write the week plan here. Publish on Rollout. Teach from Classes."}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {((isAdmin && (calendarContext?.schools?.length ?? 0) > 0) ||
+                (!isAdmin && (calendarContext?.schools?.length ?? 0) > 1)) && (
+                <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 py-1">
+                  <CalendarDaysIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <select
+                    aria-label="Align curriculum to school calendar"
+                    value={
+                      selectedCalendarSchoolId ||
+                      calendarContext?.selectedSchoolId ||
+                      (isAdmin ? "platform" : "")
+                    }
+                    onChange={(e) =>
+                      setSelectedCalendarSchoolId(
+                        e.target.value === "platform" ? "" : e.target.value
+                      )
+                    }
+                    className="bg-transparent text-[11px] font-bold text-foreground focus:outline-none max-w-[190px] truncate py-0.5 cursor-pointer"
+                  >
+                    {isAdmin && (
+                      <option value="platform">Calendar: Standard NG</option>
+                    )}
+                    {(calendarContext?.schools ?? []).map((s) => (
+                      <option key={s.id} value={s.id}>
+                        Calendar: {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {!isAdmin &&
+                (calendarContext?.schools?.length ?? 0) === 1 &&
+                calendarContext?.selectedSchoolName && (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+                    <CalendarDaysIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+                    {calendarContext.selectedSchoolName} · {effectiveSchoolAcademicYear}
+                  </span>
+                )}
+
               {["admin", "teacher", "school"].includes(profile?.role || "") && (
                 <div className="inline-flex max-w-full items-center gap-1 rounded-xl border border-border bg-background p-1">
                   <button
@@ -4194,17 +4449,45 @@ export default function CurriculumPage() {
           </div>
         )}
 
-        {/* View Mode 2: full curriculum overview */}
+        {/* View Mode 2: Full curriculum & school calendar roadmap */}
         {viewMode === "inspector" && ["admin", "teacher", "school"].includes(profile?.role || "") && (
           <div className="p-4 sm:p-6 max-w-[1800px] mx-auto w-full">
             <CurriculumBuildingBlockInspector
               programs={programs}
               courses={programs.flatMap((p) => (p.courses ?? []).map((c) => ({ ...c, program_id: p.id })))}
               curricula={allCurricula}
-              onSelectCourse={(prog, course) => {
+              academicSession={effectiveSchoolAcademicYear}
+              termCalendar={effectiveSchoolTermCalendar}
+              academicTerms={calendarContext?.academicTerms}
+              schedule={calendarContext?.schedule}
+              schoolName={calendarContext?.selectedSchoolName}
+              selectedSchoolId={calendarContext?.selectedSchoolId}
+              schools={calendarContext?.schools ?? []}
+              allowPlatformOption={isAdmin}
+              onChangeSchoolId={(sid) =>
+                setSelectedCalendarSchoolId(sid === "platform" ? "" : sid)
+              }
+              onSelectCourse={(prog, course, loc) => {
                 setSelectedProgram(prog);
                 setSelectedCourse(course);
                 setCurriculumViewMode("builder");
+                if (loc) {
+                  setActiveYear(loc.year);
+                  setActiveTerm(loc.term);
+                  const targetCurr = allCurricula.find((c) => c.course_id === course.id);
+                  if (targetCurr) {
+                    setCurriculum(targetCurr);
+                    const matchedWeek = (targetCurr.content?.terms ?? [])
+                      .find(
+                        (t: any) =>
+                          (t.year ?? 1) === loc.year && t.term === loc.term
+                      )
+                      ?.weeks?.find((w: any) => w.week === loc.week);
+                    if (matchedWeek) setActiveWeek(matchedWeek);
+                  }
+                } else {
+                  loadCurriculum(course.id);
+                }
               }}
             />
           </div>
@@ -5580,7 +5863,7 @@ export default function CurriculumPage() {
                               const schoolYear = effectiveAcademicYearForTerm(
                                 currentTermData.term,
                                 effectiveProgramStartTerm,
-                                academicYear
+                                effectiveSchoolAcademicYear
                               );
                               return (
                                 <span className="text-xs text-muted-foreground">
@@ -5594,15 +5877,15 @@ export default function CurriculumPage() {
                             const termAcYear = effectiveAcademicYearForTerm(
                               activeTerm,
                               effectiveProgramStartTerm,
-                              academicYear
+                              effectiveSchoolAcademicYear
                             );
                             const customStart = currentTermData.start_date;
                             const td = customStart
                               ? {
                                   start: customStart,
-                                  end: resolveTermDates(activeTerm, termAcYear, termCalendar)?.end ?? "",
+                                  end: resolveTermDates(activeTerm, termAcYear, effectiveSchoolTermCalendar)?.end ?? "",
                                 }
-                              : resolveTermDates(activeTerm, termAcYear, termCalendar);
+                              : resolveTermDates(activeTerm, termAcYear, effectiveSchoolTermCalendar);
                             if (!td) return null;
                             return (
                               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -5612,7 +5895,7 @@ export default function CurriculumPage() {
                                       type="date"
                                       defaultValue={
                                         currentTermData.start_date ??
-                                        resolveTermDates(activeTerm, termAcYear, termCalendar)?.start ??
+                                        resolveTermDates(activeTerm, termAcYear, effectiveSchoolTermCalendar)?.start ??
                                         ""
                                       }
                                       onBlur={(e) => {
@@ -5647,7 +5930,7 @@ export default function CurriculumPage() {
                                           setEditingTermDate(activeTerm);
                                           setTermDateDraft(
                                             currentTermData.start_date ??
-                                              resolveTermDates(activeTerm, termAcYear, termCalendar)?.start ??
+                                              resolveTermDates(activeTerm, termAcYear, effectiveSchoolTermCalendar)?.start ??
                                               ""
                                           );
                                         }}
@@ -5709,16 +5992,22 @@ export default function CurriculumPage() {
                             const termAcYear = effectiveAcademicYearForTerm(
                               weekTerm,
                               effectiveProgramStartTerm,
-                              academicYear
+                              effectiveSchoolAcademicYear
                             );
+                            const entryWeekOffset =
+                              activeYear === 1 && weekTerm === effectiveProgramStartTerm
+                                ? Math.max(0, Math.trunc(Number(calendarContext?.schedule?.entryWeek ?? 1) || 1) - 1)
+                                : 0;
+                            const explicitTermStart =
+                              activeTerm === 0
+                                ? orderedTerms.find((t) => t.term === weekTerm)?.start_date
+                                : currentTermData?.start_date;
                             const dateRange = weekDateRange(
                               weekTerm,
-                              week.week,
+                              week.week + entryWeekOffset,
                               termAcYear,
-                              activeTerm === 0
-                                ? orderedTerms.find((t) => t.term === weekTerm)
-                                    ?.start_date
-                                : currentTermData?.start_date
+                              explicitTermStart ??
+                                resolveTermDates(weekTerm, termAcYear, effectiveSchoolTermCalendar)?.start
                             );
 
                             return (
